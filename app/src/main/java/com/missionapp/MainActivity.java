@@ -31,8 +31,25 @@ public class MainActivity extends Activity {
     String[] tehranItems={"بازار (خرید لوازم و ابزار کار)","ترمینال یا فرودگاه به منزل","سایت مشتری به سایت مشتری","سایت مشتری به شرکت","سایت مشتری به منزل","شرکت به ترمینال یا فرودگاه","شرکت به سایت مشتری","شرکت به منزل","فرودگاه یا ترمینال به شرکت","منزل به ترمینال یا فرودگاه","منزل به سایت مشتری","منزل به شرکت"};
 
     int bg=Color.rgb(246,248,251), card=Color.WHITE, primary=Color.rgb(24,82,140), primaryDark=Color.rgb(17,62,106), border=Color.rgb(215,222,230), text=Color.rgb(35,43,52), muted=Color.rgb(92,104,117), green=Color.rgb(31,116,72), red=Color.rgb(176,48,48);
+    boolean darkMode=false;
 
-    public void onCreate(Bundle b){ super.onCreate(b); load(); home(); }
+    void applyColors(){
+        darkMode=getPreferences(0).getBoolean("darkMode",false);
+        if(darkMode){
+            bg=Color.rgb(18,20,24); card=Color.rgb(30,34,40); primary=Color.rgb(66,133,210); primaryDark=Color.rgb(35,53,76);
+            border=Color.rgb(70,77,88); text=Color.rgb(238,241,245); muted=Color.rgb(178,187,198); green=Color.rgb(94,201,137); red=Color.rgb(244,112,112);
+        } else {
+            bg=Color.rgb(246,248,251); card=Color.WHITE; primary=Color.rgb(24,82,140); primaryDark=Color.rgb(17,62,106);
+            border=Color.rgb(215,222,230); text=Color.rgb(35,43,52); muted=Color.rgb(92,104,117); green=Color.rgb(31,116,72); red=Color.rgb(176,48,48);
+        }
+    }
+
+    void toggleDarkMode(){
+        getPreferences(0).edit().putBoolean("darkMode",!darkMode).apply();
+        recreate();
+    }
+
+    public void onCreate(Bundle b){ super.onCreate(b); applyColors(); load(); home(); }
 
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTextColor(text);
@@ -77,8 +94,16 @@ public class MainActivity extends Activity {
     }
 
     LinearLayout field(String name,View v){
-        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,5,0,5);
-        l.addView(label(name)); l.addView(v,new LinearLayout.LayoutParams(-1,52)); return l;
+        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,7,0,7);
+        TextView lab=label(name);
+        lab.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        lab.setTextColor(primaryDark);
+        lab.setPadding(10,5,10,5);
+        lab.setBackground(shape(darkMode?Color.rgb(42,47,55):Color.rgb(235,240,246),8,Color.TRANSPARENT));
+        l.addView(lab,new LinearLayout.LayoutParams(-1,32));
+        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,52); vp.topMargin=4;
+        l.addView(v,vp);
+        return l;
     }
 
     LinearLayout section(String title){
@@ -111,7 +136,8 @@ public class MainActivity extends Activity {
         Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(1,12));
     }
 
-    String money(double x){ return String.format(Locale.US,"%,.0f",x); }
+    String money(double x){ return String.format(Locale.US,"%,.2f",x); }
+    String moneyInt(double x){ return String.format(Locale.US,"%,.0f",x); }
 
     String words(long n){
         String[] u={"صفر","یک","دو","سه","چهار","پنج","شش","هفت","هشت","نه","ده","یازده","دوازده","سیزده","چهارده","پانزده","شانزده","هفده","هجده","نوزده","بیست","بیست و یک","بیست و دو","بیست و سه","بیست و چهار","بیست و پنج","بیست و شش","بیست و هفت","بیست و هشت","بیست و نه"};
@@ -145,6 +171,9 @@ public class MainActivity extends Activity {
         base("مدیریت مأموریت و هزینه‌ها");
         TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(4,0,4,12); box.addView(intro);
 
+        Button mode=secondary(darkMode?"☀  حالت روشن":"☾  حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
+        Space modeSp=new Space(this); box.addView(modeSp,new LinearLayout.LayoutParams(1,8));
+
         Button n=bt("＋  ثبت مأموریت جدید"); n.setOnClickListener(v->{cur=new JSONObject();try{cur.put("expenses",new JSONArray());}catch(Exception e){}edit();}); box.addView(n);
         Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(1,12));
 
@@ -177,6 +206,7 @@ public class MainActivity extends Activity {
         Spinner ps=spinner(people),ds=spinner(devices),hp=spinner(payers),gp=spinner(payers),bp=spinner(payers),cgp=spinner(payers),cbp=spinner(payers);
 
         form.setText(cur.optString("form"));service.setText(cur.optString("service"));subject.setText(cur.optString("subject"));dest.setText(cur.optString("destination"));start.setText(cur.optString("start"));end.setText(cur.optString("end"));startTime.setText(cur.optString("startTime"));endTime.setText(cur.optString("endTime"));
+        attachDatePicker(start); attachDatePicker(end);
         days.setText(String.valueOf(cur.optDouble("days",1))); holiday.setText(String.valueOf(cur.optDouble("holiday",0))); hotel.setText(String.valueOf(cur.optDouble("hotel",0)));go.setText(String.valueOf(cur.optDouble("ticketGo",0)));back.setText(String.valueOf(cur.optDouble("ticketBack",0)));cancelGo.setText(String.valueOf(cur.optDouble("cancelGo",0)));cancelBack.setText(String.valueOf(cur.optDouble("cancelBack",0)));goNo.setText(cur.optString("goNo"));backNo.setText(cur.optString("backNo"));
         ps.setSelection(index(people,cur.optString("person")));ds.setSelection(index(devices,cur.optString("device")));hp.setSelection(index(payers,payer(cur,"hotelPayer")));gp.setSelection(index(payers,payer(cur,"goPayer")));bp.setSelection(index(payers,payer(cur,"backPayer")));cgp.setSelection(index(payers,payer(cur,"cancelGoPayer")));cbp.setSelection(index(payers,payer(cur,"cancelBackPayer")));
 
@@ -223,7 +253,7 @@ public class MainActivity extends Activity {
         LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(10,4,10,4);
         Spinner cat=spinner(cats),ti=spinner(tehranItems); l.addView(field("نوع هزینه",cat));l.addView(field("شرح/مورد تهران",ti));
         EditText date=ed("تاریخ"),desc=ed("شرح"),invoice=ed("شماره فاکتور"),amount=ed("مبلغ");
-        l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("شماره فاکتور",invoice));l.addView(field("مبلغ",amount));
+        attachDatePicker(date); l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("شماره فاکتور",invoice));l.addView(field("مبلغ",amount));
         cat.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){ti.setVisibility(pos==0?View.VISIBLE:View.GONE);}public void onNothingSelected(android.widget.AdapterView<?> p){}});
         new AlertDialog.Builder(this).setTitle("افزودن هزینه").setView(l).setNegativeButton("انصراف",null).setPositiveButton("ثبت هزینه",(d,w)->{
             try{JSONArray a=cur.getJSONArray("expenses");JSONObject o=new JSONObject();o.put("category",cat.getSelectedItem().toString());o.put("tehranItem",ti.getSelectedItem().toString());o.put("date",date.getText().toString());o.put("desc",desc.getText().toString());o.put("invoice",invoice.getText().toString());o.put("amount",num(amount));a.put(o);render(list,sum);}catch(Exception e){toast(e.getMessage());}
@@ -245,6 +275,43 @@ public class MainActivity extends Activity {
     void save(){try{JSONArray a=new JSONArray();for(JSONObject m:data)a.put(m);getPreferences(0).edit().putString("data",a.toString()).apply();}catch(Exception e){}}
     void load(){try{JSONArray a=new JSONArray(getPreferences(0).getString("data","[]"));for(int i=0;i<a.length();i++)data.add(a.getJSONObject(i));}catch(Exception e){}}
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
+
+    void attachDatePicker(final EditText target){
+        target.setFocusable(false);
+        target.setClickable(true);
+        target.setOnClickListener(v->{
+            Calendar initial=Calendar.getInstance();
+            int[] g=jalaliToGregorianSafe(target.getText().toString());
+            if(g!=null){ initial.set(g[0],g[1]-1,g[2]); }
+            DatePickerDialog dlg=new DatePickerDialog(this,(view,year,month,day)->{
+                int[] j=gregorianToJalali(year,month+1,day);
+                target.setText(String.format(Locale.US,"%04d/%02d/%02d",j[0],j[1],j[2]));
+            },initial.get(Calendar.YEAR),initial.get(Calendar.MONTH),initial.get(Calendar.DAY_OF_MONTH));
+            dlg.show();
+        });
+    }
+
+    int[] jalaliToGregorianSafe(String value){
+        try{
+            String[] p=value.trim().replace("-","/").split("/");
+            if(p.length!=3)return null;
+            int jy=Integer.parseInt(p[0]),jm=Integer.parseInt(p[1]),jd=Integer.parseInt(p[2]);
+            if(jy<1200||jy>1600||jm<1||jm>12||jd<1||jd>31)return null;
+            int jy2=jy-979;
+            int days=365*jy2+(jy2/33)*8+((jy2%33)+3)/4;
+            if(jm<=6) days+=(jm-1)*31; else days+=(jm-7)*30+186;
+            days+=jd-1;
+            int gdn=days+79;
+            int gy=1600+400*(gdn/146097); gdn%=146097;
+            boolean leap=true;
+            if(gdn>=36525){gdn--;gy+=100*(gdn/36524);gdn%=36524;if(gdn>=365)gdn++;else leap=false;}
+            gy+=4*(gdn/1461);gdn%=1461;
+            if(gdn>=366){leap=false;gdn--;gy+=gdn/365;gdn%=365;}
+            int[] md={31,(leap?29:28),31,30,31,30,31,31,30,31,30,31};
+            int gm=1;while(gm<=12&&gdn>=md[gm-1]){gdn-=md[gm-1];gm++;}
+            return new int[]{gy,gm,gdn+1};
+        }catch(Exception e){return null;}
+    }
 
     int[] gregorianToJalali(int gy,int gm,int gd){int[] gdm={0,31,28,31,30,31,30,31,31,30,31,30,31};int gy2=gy-1600,gm2=gm-1,gd2=gd-1;int gdn=365*gy2+(gy2+3)/4-(gy2+99)/100+(gy2+399)/400;for(int i=0;i<gm2;i++)gdn+=gdm[i];if(gm2>1&&((gy%4==0&&gy%100!=0)||gy%400==0))gdn++;gdn+=gd2;int jdn=gdn-79;int j_np=jdn/12053;jdn%=12053;int jy=979+33*j_np+4*(jdn/1461);jdn%=1461;if(jdn>=366){jy+=(jdn-1)/365;jdn=(jdn-1)%365;}int jm=jdn<186?1+jdn/31:7+(jdn-186)/30;int jd=1+(jdn%(jdn<186?31:30));return new int[]{jy,jm,jd};}
     int days360(int sy,int sm,int sd,int ey,int em,int ed){if(sd==31)sd=30;if(ed==31&&(sd==30||sd==31))ed=30;return 360*(ey-sy)+30*(em-sm)+(ed-sd);}
@@ -290,7 +357,8 @@ public class MainActivity extends Activity {
         if(ar!=null)for(;idx<ar.length();idx++){
             if(y>790){finishPage(c);return idx;}
             JSONObject o=ar.optJSONObject(idx);
-            String[] rr={o.optString("category"),o.optString("desc"),o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
+            String detail=o.optString("desc"); if(detail.isEmpty()) detail=o.optString("tehranItem");
+            String[] rr={o.optString("category"),detail,o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
             for(int z=0;z<5;z++)drawCell(c,rr[z],x[z],y,x[z+1],y+34,false);y+=34;
         }
         double[] sums={0,0,0,0};String[] cn={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
@@ -307,7 +375,7 @@ public class MainActivity extends Activity {
             PdfDocument d=new PdfDocument();int W=595,H=842;int page=1;
 
             PdfDocument.Page p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());Canvas c=p.getCanvas();
-            drawHeader(c,"فرم مأموریت و هزینه‌ها","گزارش تولیدشده از اطلاعات ثبت‌شده در اپلیکیشن",W);
+            drawHeader(c,"فرم مأموریت و هزینه‌ها","نسخه چاپی ساختاریافته — تمام مقادیر ثبت‌شده در فرم",W);
             drawSummaryGrid(c,m,60,W);
             int y=60+7*38+18;
             Paint hp=pdfPaint(12,true);hp.setTextAlign(Paint.Align.RIGHT);c.drawText("هزینه‌های مستقیم",W-28,y,hp);y+=12;
@@ -332,7 +400,8 @@ public class MainActivity extends Activity {
                     int[] x={L2,150,305,395,475,R2};String[] hh={"دسته هزینه","شرح","تاریخ","فاکتور","مبلغ"};
                     for(int i=0;i<5;i++)drawCell(c,hh[i],x[i],y0,x[i+1],y0+30,true);y0+=30;
                     while(from<count && y0<=790){
-                        JSONObject o=ar.optJSONObject(from);String[] rr={o.optString("category"),o.optString("desc"),o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
+                        JSONObject o=ar.optJSONObject(from);String detail=o.optString("desc"); if(detail.isEmpty()) detail=o.optString("tehranItem");
+                        String[] rr={o.optString("category"),detail,o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
                         for(int z=0;z<5;z++)drawCell(c,rr[z],x[z],y0,x[z+1],y0+34,false);y0+=34;from++;
                     }
                     d.finishPage(p);
