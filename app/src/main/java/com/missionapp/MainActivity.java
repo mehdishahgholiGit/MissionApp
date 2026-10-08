@@ -317,119 +317,214 @@ public class MainActivity extends Activity {
     int days360(int sy,int sm,int sd,int ey,int em,int ed){if(sd==31)sd=30;if(ed==31&&(sd==30||sd==31))ed=30;return 360*(ey-sy)+30*(em-sm)+(ed-sd);}
     void validate7(String end){if(end==null||end.trim().isEmpty())return;try{String[] p=end.trim().replace("-","/").split("/");if(p.length!=3)return;int y=Integer.parseInt(p[0]),mo=Integer.parseInt(p[1]),da=Integer.parseInt(p[2]);int[] now=gregorianToJalali(Calendar.getInstance().get(Calendar.YEAR),Calendar.getInstance().get(Calendar.MONTH)+1,Calendar.getInstance().get(Calendar.DAY_OF_MONTH));int d;if(y>=1200&&y<1700)d=days360(y,mo,da,now[0],now[1],now[2]);else{Calendar e=Calendar.getInstance();e.setLenient(false);e.set(y,mo-1,da,0,0,0);e.getTime();Calendar n=Calendar.getInstance();n.set(Calendar.HOUR_OF_DAY,0);n.set(Calendar.MINUTE,0);n.set(Calendar.SECOND,0);n.set(Calendar.MILLISECOND,0);d=(int)((n.getTimeInMillis()-e.getTimeInMillis())/86400000L);}if(d>7)throw new IllegalArgumentException("بیشتر از ۷ روز از مأموریت گذشته و هزینه‌ها طبق Excel قابل پرداخت نیست");}catch(NumberFormatException x){}catch(IllegalArgumentException x){if(x.getMessage()!=null&&x.getMessage().contains("بیشتر از"))throw x;}}
 
-    Paint pdfPaint(float size,boolean bold){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(Color.BLACK);p.setTextSize(size);if(bold)p.setTypeface(Typeface.DEFAULT_BOLD);return p;}
-    void drawCell(Canvas c,String s,float l,float t,float r,float b,boolean bold){
-        Paint borderP=pdfPaint(10,false);borderP.setStyle(Paint.Style.STROKE);c.drawRect(l,t,r,b,borderP);
-        Paint p=pdfPaint(bold?10:9,bold);android.text.TextPaint tp=new android.text.TextPaint(p);tp.setTextAlign(Paint.Align.RIGHT);
-        android.text.StaticLayout sl=new android.text.StaticLayout(s==null?"":s,tp,Math.max(20,(int)(r-l-10)),android.text.Layout.Alignment.ALIGN_OPPOSITE,1.05f,0,false);
-        c.save();c.translate(r-5,t+5);sl.draw(c);c.restore();
+    Paint pdfPaint(float size,boolean bold){
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(Color.BLACK); p.setTextSize(size);
+        if(bold)p.setTypeface(Typeface.DEFAULT_BOLD);
+        return p;
     }
 
-    void drawHeader(Canvas c,String title,String sub,int W){
-        Paint p=pdfPaint(18,true);p.setTextAlign(Paint.Align.CENTER);c.drawText(title,W/2,30,p);
-        Paint q=pdfPaint(9,false);q.setTextAlign(Paint.Align.CENTER);c.drawText(sub,W/2,46,q);
+    void pdfText(Canvas c,String s,float x,float y,float width,float height,float size,boolean bold,boolean center){
+        Paint p=pdfPaint(size,bold);
+        android.text.TextPaint tp=new android.text.TextPaint(p);
+        tp.setTextAlign(center?Paint.Align.CENTER:Paint.Align.RIGHT);
+        android.text.StaticLayout sl=new android.text.StaticLayout(
+                s==null?"":s,tp,Math.max(20,(int)width),
+                center?android.text.Layout.Alignment.ALIGN_CENTER:android.text.Layout.Alignment.ALIGN_OPPOSITE,
+                1.0f,0,false);
+        c.save();
+        c.translate(center?x-width/2:x-5,y+4);
+        sl.draw(c);
+        c.restore();
     }
 
-    void drawSummaryGrid(Canvas c,JSONObject m,int y,int W){
-        int L=28,R=W-28,mid=W/2;int h=38;
-        drawCell(c,"شماره فرم\n"+m.optString("form"),L,y,mid,y+h,false);
-        drawCell(c,"شماره سرویس\n"+m.optString("service"),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"نام کارشناس\n"+m.optString("person"),L,y,mid,y+h,false);
-        drawCell(c,"دستگاه\n"+m.optString("device"),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"موضوع\n"+m.optString("subject"),L,y,mid,y+h,false);
-        drawCell(c,"مقصد\n"+m.optString("destination"),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"تاریخ شروع\n"+m.optString("start"),L,y,mid,y+h,false);
-        drawCell(c,"تاریخ پایان\n"+m.optString("end"),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"زمان شروع\n"+m.optString("startTime"),L,y,mid,y+h,false);
-        drawCell(c,"زمان پایان\n"+m.optString("endTime"),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"تعداد روز\n"+m.optDouble("days",1),L,y,mid,y+h,false);
-        drawCell(c,"تعطیل\n"+m.optDouble("holiday",0),mid,y,R,y+h,false);y+=h;
-        drawCell(c,"حومه تهران\n"+(m.optBoolean("suburb")?"بله":"خیر"),L,y,mid,y+h,false);
-        drawCell(c,"حق مأموریت\n"+money(missionPay(m))+" ریال",mid,y,R,y+h,true);
+    void excelBox(Canvas c,String s,float l,float t,float r,float b,boolean fill,boolean bold){
+        Paint q=pdfPaint(8,false);
+        q.setStyle(Paint.Style.FILL);
+        q.setColor(fill?Color.rgb(224,224,224):Color.WHITE);
+        c.drawRect(l,t,r,b,q);
+        q.setStyle(Paint.Style.STROKE); q.setStrokeWidth(1.2f); q.setColor(Color.BLACK);
+        c.drawRect(l,t,r,b,q);
+        pdfText(c,s,r,t,r-l-8,b-t,9,bold,false);
     }
 
-    int drawExpenseRows(Canvas c,JSONObject m,int startY,int pageNo,int W){
-        int y=startY,L=24,R=W-24;
-        Paint p=pdfPaint(12,true);p.setTextAlign(Paint.Align.RIGHT);c.drawText("ریز هزینه‌ها",R,y,p);y+=10;
-        int[] x={L,150,305,395,475,R};String[] h={"دسته هزینه","شرح","تاریخ","فاکتور","مبلغ"};
-        for(int i=0;i<5;i++)drawCell(c,h[i],x[i],y,x[i+1],y+30,true);y+=30;
-        JSONArray ar=m.optJSONArray("expenses");int idx=0;
-        if(ar!=null)for(;idx<ar.length();idx++){
-            if(y>790){finishPage(c);return idx;}
-            JSONObject o=ar.optJSONObject(idx);
-            String detail=o.optString("desc"); if(detail.isEmpty()) detail=o.optString("tehranItem");
-            String[] rr={o.optString("category"),detail,o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
-            for(int z=0;z<5;z++)drawCell(c,rr[z],x[z],y,x[z+1],y+34,false);y+=34;
+    void excelLabel(Canvas c,String label,String value,float l,float t,float r,float b){
+        Paint q=pdfPaint(8,false); q.setStyle(Paint.Style.FILL); q.setColor(Color.rgb(224,224,224)); c.drawRect(l,t,r,b,q);
+        q.setStyle(Paint.Style.STROKE); q.setStrokeWidth(1.2f); q.setColor(Color.BLACK); c.drawRect(l,t,r,b,q);
+        float split=r-92;
+        c.drawLine(split,t,split,b,q);
+        pdfText(c,label,r-5,t,82,b-t,8,true,false);
+        pdfText(c,value,split-5,t,split-l-8,b-t,9,false,false);
+    }
+
+    void excelSection(Canvas c,String title,float l,float y,float r){
+        Paint q=pdfPaint(9,true); q.setTextAlign(Paint.Align.RIGHT); c.drawText(title,r,y,q);
+        q.setStyle(Paint.Style.STROKE); q.setStrokeWidth(1.2f); q.setColor(Color.BLACK);
+        c.drawLine(l,y+5,r,y+5,q);
+    }
+
+    void excelCheckbox(Canvas c,String text,float x,float y,boolean checked){
+        Paint q=pdfPaint(9,false);q.setStyle(Paint.Style.STROKE);q.setColor(Color.BLACK);q.setStrokeWidth(1);
+        c.drawRect(x,y-10,x+10,y,q);
+        if(checked){q.setStrokeWidth(1.8f);c.drawLine(x+2,y-5,x+5,y-2,q);c.drawLine(x+5,y-2,x+9,y-8,q);}
+        q.setStyle(Paint.Style.FILL);q.setTextAlign(Paint.Align.RIGHT);c.drawText(text,x-6,y,q);
+    }
+
+    void excelFooter(Canvas c,int W){
+        Paint p=pdfPaint(7,false);p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("A01AB098-2011-48B1-8600-AE558395FF54",W/2,815,p);
+        p.setTextAlign(Paint.Align.RIGHT);c.drawText("1405/07/15",W-42,815,p);
+    }
+
+    void drawPaymentsPage(Canvas c,JSONObject m,int W,int H){
+        int L=44,R=W-44;
+        Paint p=pdfPaint(9,true);p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("فرم هزینه ماموریت",W/2,30,p);
+        Paint q=pdfPaint(8,false);q.setTextAlign(Paint.Align.RIGHT);c.drawText("75F0203-B",R,24,q);
+        Paint title=pdfPaint(26,false);title.setTextAlign(Paint.Align.CENTER);c.drawText("*M*",W/2,62,title);
+        Paint company=pdfPaint(12,true);company.setTextAlign(Paint.Align.RIGHT);c.drawText("فن آوری آزمایشگاهی",R,55,company);
+        excelBox(c,"به فیلدهایی که قرمز میشوند توجه کنید.",L,72,230,103,true,true);
+        excelLabel(c,"شماره فرم",m.optString("form"),R-255,72,R,103);
+        excelLabel(c,"شماره سرویس",m.optString("service"),L,108,235,130);
+        excelLabel(c,"بخش","خدمات پس از فروش، زیمنس آزمایشگاهی",235,108,R,130);
+        excelLabel(c,"تاریخ",m.optString("start"),L,131,235,153);
+        excelLabel(c,"الی",m.optString("end"),235,131,R,153);
+        excelLabel(c,"نام کارشناس",m.optString("person"),L,154,235,176);
+        excelLabel(c,"کمپانی","SIEMENS",235,154,R,176);
+        excelLabel(c,"موضوع",m.optString("subject"),L,177,235,199);
+        excelLabel(c,"دستگاه",m.optString("device"),235,177,R,199);
+        excelLabel(c,"مقصد",m.optString("destination"),235,200,R,222);
+        excelSection(c,"وضعیت سفر",L,236,R);
+        excelCheckbox(c,"زمینی",R-75,257,m.optBoolean("ground",false));
+        excelCheckbox(c,"هوایی",R-75,279,m.optBoolean("air",false));
+        excelCheckbox(c,"کنسلی",R-75,301,m.optBoolean("cancel",false));
+        excelLabel(c,"هزینه تردد بین شهری",money(expenseSum(m,"هزینه تردد بین شهری"))+" ریال",L,246,355,268);
+        excelLabel(c,"هزینه بلیط رفت",money(m.optDouble("ticketGo"))+" ریال",L,269,355,291);
+        excelLabel(c,"هزینه بلیط برگشت",money(m.optDouble("ticketBack"))+" ریال",L,292,355,314);
+        excelLabel(c,"هزینه کنسلی رفت",money(m.optDouble("cancelGo"))+" ریال",L,315,355,337);
+        excelLabel(c,"هزینه کنسلی برگشت",money(m.optDouble("cancelBack"))+" ریال",L,338,355,360);
+        excelLabel(c,"شماره بلیط رفت",m.optString("goNo"),355,269,R,291);
+        excelLabel(c,"شماره بلیط برگشت",m.optString("backNo"),355,292,R,314);
+        excelSection(c,"زمان بندی سفر",L,374,R);
+        excelLabel(c,"تاریخ شروع",m.optString("start"),L,382,300,404);
+        excelLabel(c,"تاریخ برگشت",m.optString("end"),300,382,R,404);
+        excelLabel(c,"زمان شروع",m.optString("startTime"),L,405,300,427);
+        excelLabel(c,"زمان اتمام",m.optString("endTime"),300,405,R,427);
+        excelSection(c,"هزینه سفر",L,442,R);
+        excelLabel(c,"هتل",money(m.optDouble("hotel"))+" ریال / "+payer(m,"hotelPayer"),L,449,300,471);
+        excelLabel(c,"تردد",money(expenseSum(m,"هزینه تردد درون شهری")+expenseSum(m,"هزینه تردد بین شهری"))+" ریال",300,449,R,471);
+        excelLabel(c,"حقوق روزانه",money(missionPay(m))+" ریال",L,472,300,494);
+        excelLabel(c,"متفرقه",money(expenseSum(m,"سایر هزینه ها"))+" ریال",300,472,R,494);
+        excelLabel(c,"تعداد روزهای ماموریت",String.valueOf(m.optDouble("days",1)),L,495,300,517);
+        excelLabel(c,"تعداد روزهای تعطیل",String.valueOf(m.optDouble("holiday",0)),300,495,R,517);
+        excelLabel(c,"جمع کل",money(total(m))+" ریال",L,518,R,542);
+        excelSection(c,"امضاء کارشناس / تایید مدیر گروه",L,555,R);
+        excelBox(c,"پرداخت هزینه فوق بلا مانع است",L,561,R,594,false,false);
+        excelLabel(c,"امضاء","",L,595,R,617);
+        excelSection(c,"پرداخت",L,632,R);
+        excelBox(c,"مبلغ "+money(total(m))+" ریال بابت حق علی الحساب ماموریت فوق به اینجانب پرداخت گردید.",L,640,R,683,false,false);
+        excelLabel(c,"نام و نام خانوادگی",m.optString("person"),L,684,300,706);
+        excelLabel(c,"تاریخ",m.optString("end"),300,684,R,706);
+        excelBox(c,"مبلغ "+money(total(m))+" ریال بابت تسویه ماموریت فوق به اینجانب پرداخت گردید.",L,707,R,750,false,false);
+        excelLabel(c,"نام و نام خانوادگی",m.optString("person"),L,751,300,773);
+        excelLabel(c,"تاریخ",m.optString("end"),300,751,R,773);
+        excelFooter(c,W);
+    }
+
+    void drawTripsPage(Canvas c,JSONObject m,int W,int H){
+        int L=44,R=W-44; Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("صورت هزینه های تنخواه گردان",W/2,34,p);
+        Paint q=pdfPaint(9,false);q.setTextAlign(Paint.Align.RIGHT);c.drawText("تاریخ: "+m.optString("end"),R,58,q);
+        String[] cats2={"هزینه های شهر تهران","هزینه های تردد بین شهری","هزینه های تردد درون شهری به غیر از تهران","سایر هزینه ها"};
+        String[] keys={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
+        int y=72;
+        JSONArray ar=m.optJSONArray("expenses");
+        for(int g=0;g<4;g++){
+            Paint h=pdfPaint(10,true);h.setTextAlign(Paint.Align.RIGHT);c.drawText(cats2[g],R,y,h);y+=7;
+            int[] x={L,115,340,410,R};
+            String[] heads={"تاریخ","شرح","فاکتور","مبلغ"};
+            for(int i=0;i<4;i++)excelBox(c,heads[i],x[i],y,x[i+1],y+22,true,true);
+            y+=22;
+            int count=0;
+            if(ar!=null)for(int i=0;i<ar.length()&&count<3;i++){
+                JSONObject o=ar.optJSONObject(i);
+                if(!keys[g].equals(o.optString("category")))continue;
+                excelBox(c,o.optString("date"),x[0],y,x[1],y+22,false,false);
+                String detail=o.optString("desc");if(detail.isEmpty())detail=o.optString("tehranItem");
+                excelBox(c,detail,x[1],y,x[2],y+22,false,false);
+                excelBox(c,o.optString("invoice"),x[2],y,x[3],y+22,false,false);
+                excelBox(c,money(o.optDouble("amount")),x[3],y,x[4],y+22,false,false);
+                y+=22;count++;
+            }
+            while(count<2){for(int i=0;i<4;i++)excelBox(c,"",x[i],y,x[i+1],y+22,false,false);y+=22;count++;}
+            double sum=expenseSum(m,keys[g]);
+            excelBox(c,"جمع "+cats2[g],L,y,340,y+23,true,true);
+            excelBox(c,money(sum)+" ریال",340,y,R,y+23,true,true);y+=35;
         }
-        double[] sums={0,0,0,0};String[] cn={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
-        if(ar!=null)for(int i=0;i<ar.length();i++){JSONObject o=ar.optJSONObject(i);for(int z=0;z<4;z++)if(cn[z].equals(o.optString("category")))sums[z]+=o.optDouble("amount");}
-        y+=8;for(int i=0;i<4;i++){drawCell(c,cn[i],L,y,300,y+28,false);drawCell(c,money(sums[i])+" ریال",300,y,R,y+28,false);y+=28;}
-        drawCell(c,"جمع کل قابل پرداخت",L,y,300,y+38,true);drawCell(c,money(total(m))+" ریال",300,y,R,y+38,true);
-        return -1;
+        excelBox(c,"جمع کل:",L,y,340,y+25,true,true);
+        excelBox(c,money(expenseSum(m,null))+" ریال",340,y,R,y+25,true,true);y+=45;
+        excelLabel(c,"نام و امضا کارشناس",m.optString("person"),L,y,330,y+28);
+        excelLabel(c,"تایید مدیر","",330,y,R,y+28);
+        excelFooter(c,W);
     }
 
-    void finishPage(Canvas c){ }
+    void drawCoverPage(Canvas c,JSONObject m,int W,int H){
+        int L=36,R=W-36;Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("شرکت فن آوری آزمایشگاهی (با مسئولیت محدود)",W/2,28,p);
+        Paint q=pdfPaint(10,true);q.setTextAlign(Paint.Align.CENTER);
+        c.drawText("درخواست وجه                         تسویه وجه دریافتی",W/2,54,q);
+        excelLabel(c,"از واحد","خدمات پس از فروش",L,70,290,94);
+        excelLabel(c,"به واحد","مالی",290,70,R,94);
+        excelLabel(c,"شماره",m.optString("form"),L,95,290,119);
+        excelLabel(c,"تاریخ",m.optString("end"),290,95,R,119);
+        excelBox(c,"بدینوسیله خواهشمند است نسبت به پرداخت یا تسویه مبلغ  "+money(total(m))+" ریال",L,124,R,155,false,false);
+        excelBox(c,"مبلغ به حروف: "+amountWords(total(m)),L,156,R,188,false,false);
+        excelLabel(c,"در وجه",m.optString("person"),L,189,300,214);
+        excelLabel(c,"بابت ماموریت",m.optString("destination"),300,189,R,214);
+        excelSection(c,"مربوط به",L,232,R);
+        excelLabel(c,"کمپانی","زیمنس آزمایشگاهی",L,238,300,264);
+        excelLabel(c,"نسبت درصد هر کمپانی","100%",300,238,R,264);
+        excelLabel(c,"شماره سفارش / پروفرم","",L,265,300,291);
+        excelLabel(c,"پیش فاکتور / فاکتور","",300,265,R,291);
+        excelBox(c,"توضیحات: مأموریت "+m.optString("subject")+" — مقصد: "+m.optString("destination"),L,292,R,346,false,false);
+        excelLabel(c,"درخواست کننده",m.optString("person"),L,360,300,388);
+        excelLabel(c,"مدیر واحد","",300,360,R,388);
+        excelSection(c,"حسابداری",L,407,R);
+        excelBox(c,"لطفاً نسبت به پرداخت مبلغ ...........................................................( "+money(total(m))+" ) ریال/ارز اقدام نمایید.",L,414,R,449,false,false);
+        excelLabel(c,"بابت","ماموریت",L,450,220,477);
+        excelLabel(c,"به سررسید",m.optString("end"),220,450,390,477);
+        excelLabel(c,"از محل موجودی بانک","",390,450,R,477);
+        excelLabel(c,"به شماره حساب","",L,478,300,505);
+        excelLabel(c,"اقدام نمایید","",300,478,R,505);
+        excelSection(c,"رسیدگی کننده / مدیر امور مالی",L,524,R);
+        excelBox(c,"رسیدگی کننده: ____________________                         مدیر امور مالی: ____________________",L,531,R,568,false,false);
+        excelBox(c,"□ الزامات بودجه رعایت نشده است.",L,582,R,606,false,false);
+        excelBox(c,"□ سقف بودجه رعایت نشده است.",L,607,R,631,false,false);
+        excelFooter(c,W);
+    }
 
     void pdf(JSONObject m){
         try{
-            PdfDocument d=new PdfDocument();int W=595,H=842;int page=1;
+            PdfDocument d=new PdfDocument();int W=595,H=842,page=1;
+            PdfDocument.Page p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());
+            drawPaymentsPage(p.getCanvas(),m,W,H); d.finishPage(p);
 
-            PdfDocument.Page p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());Canvas c=p.getCanvas();
-            drawHeader(c,"فرم مأموریت و هزینه‌ها","نسخه چاپی ساختاریافته — تمام مقادیر ثبت‌شده در فرم",W);
-            drawSummaryGrid(c,m,60,W);
-            int y=60+7*38+18;
-            Paint hp=pdfPaint(12,true);hp.setTextAlign(Paint.Align.RIGHT);c.drawText("هزینه‌های مستقیم",W-28,y,hp);y+=12;
-            int L=28,R=W-28,mid=W/2,h=38;
-            drawCell(c,"هتل\n"+money(m.optDouble("hotel"))+" ریال\nپرداخت: "+payer(m,"hotelPayer"),L,y,mid,y+h,false);
-            drawCell(c,"بلیط رفت\n"+money(m.optDouble("ticketGo"))+" ریال\nپرداخت: "+payer(m,"goPayer"),mid,y,R,y+h,false);y+=h;
-            drawCell(c,"بلیط برگشت\n"+money(m.optDouble("ticketBack"))+" ریال\nپرداخت: "+payer(m,"backPayer"),L,y,mid,y+h,false);
-            drawCell(c,"کنسلی رفت\n"+money(m.optDouble("cancelGo"))+" ریال\nپرداخت: "+payer(m,"cancelGoPayer"),mid,y,R,y+h,false);y+=h;
-            drawCell(c,"کنسلی برگشت\n"+money(m.optDouble("cancelBack"))+" ریال\nپرداخت: "+payer(m,"cancelBackPayer"),L,y,mid,y+h,false);
-            drawCell(c,"جمع کل\n"+money(total(m))+" ریال",mid,y,R,y+h,true);
-            d.finishPage(p);
+            p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());
+            drawTripsPage(p.getCanvas(),m,W,H); d.finishPage(p);
 
-            JSONArray ar=m.optJSONArray("expenses");int count=ar==null?0:ar.length();
-            int from=0;
-            if(count==0){
-                p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());c=p.getCanvas();drawHeader(c,"ریز هزینه‌ها","در این مأموریت ردیف هزینه‌ای ثبت نشده است",W);d.finishPage(p);
-            } else {
-                while(from<count){
-                    p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());c=p.getCanvas();
-                    drawHeader(c,"ریز هزینه‌ها","صفحه "+(page-1),W);
-                    int y0=65,L2=24,R2=W-24;Paint pp=pdfPaint(12,true);pp.setTextAlign(Paint.Align.RIGHT);c.drawText("جزئیات هزینه‌های ثبت‌شده",R2,y0,pp);y0+=12;
-                    int[] x={L2,150,305,395,475,R2};String[] hh={"دسته هزینه","شرح","تاریخ","فاکتور","مبلغ"};
-                    for(int i=0;i<5;i++)drawCell(c,hh[i],x[i],y0,x[i+1],y0+30,true);y0+=30;
-                    while(from<count && y0<=790){
-                        JSONObject o=ar.optJSONObject(from);String detail=o.optString("desc"); if(detail.isEmpty()) detail=o.optString("tehranItem");
-                        String[] rr={o.optString("category"),detail,o.optString("date"),o.optString("invoice"),money(o.optDouble("amount"))};
-                        for(int z=0;z<5;z++)drawCell(c,rr[z],x[z],y0,x[z+1],y0+34,false);y0+=34;from++;
-                    }
-                    d.finishPage(p);
-                }
-            }
+            p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());
+            drawCoverPage(p.getCanvas(),m,W,H); d.finishPage(p);
 
-            p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());c=p.getCanvas();
-            drawHeader(c,"روکش سند حسابداری","فرم قابل ارائه به واحد مالی",W);
-            int L3=28,R3=W-28,coverY=65;String[][] cover={
-                {"واحد / دستگاه",m.optString("device")},{"نام کارشناس",m.optString("person")},{"مقصد",m.optString("destination")},
-                {"موضوع مأموریت",m.optString("subject")},{"شماره فرم",m.optString("form")},{"شماره سرویس",m.optString("service")},
-                {"بازه مأموریت",m.optString("start")+" تا "+m.optString("end")},{"مبلغ سند",money(total(m))+" ریال"},{"مبلغ به حروف",amountWords(total(m))}
-            };
-            for(String[] r:cover){int hh=r[0].equals("مبلغ به حروف")?58:42;drawCell(c,r[0],L3,coverY,205,coverY+hh,true);drawCell(c,r[1],205,coverY,R3,coverY+hh,false);coverY+=hh;}
-            coverY+=12;Paint pp=pdfPaint(12,true);pp.setTextAlign(Paint.Align.RIGHT);c.drawText("وضعیت پرداخت هزینه‌های مستقیم",R3,coverY,pp);coverY+=10;
-            String[] payRows={"هتل: "+payer(m,"hotelPayer")+"    |    بلیط رفت: "+payer(m,"goPayer"),"بلیط برگشت: "+payer(m,"backPayer")+"    |    کنسلی رفت: "+payer(m,"cancelGoPayer"),"کنسلی برگشت: "+payer(m,"cancelBackPayer")};
-            for(String s:payRows){drawCell(c,s,L3,coverY,R3,coverY+34,false);coverY+=34;}
-            coverY+=12;c.drawText("تأییدها و امضا",R3,coverY,pp);coverY+=10;
-            String[] sig={"درخواست کننده","مدیر / مسئول","حسابداری","تأیید نهایی"};
-            for(String s:sig){drawCell(c,s,L3,coverY,205,coverY+48,true);drawCell(c,"نام و امضا: ______________________________",205,coverY,R3,coverY+48,false);coverY+=52;}
-            d.finishPage(p);
-
-            String fn="Mission_"+System.currentTimeMillis()+".pdf";
-            Uri u;
+            String fn="Mission_"+System.currentTimeMillis()+".pdf"; Uri u;
             if(Build.VERSION.SDK_INT>=29){
-                ContentValues v=new ContentValues();v.put(MediaStore.Downloads.DISPLAY_NAME,fn);v.put(MediaStore.Downloads.MIME_TYPE,"application/pdf");v.put(MediaStore.Downloads.IS_PENDING,1);
-                u=getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);OutputStream o=getContentResolver().openOutputStream(u);d.writeTo(o);o.close();v.clear();v.put(MediaStore.Downloads.IS_PENDING,0);getContentResolver().update(u,v,null,null);
-            } else {
+                ContentValues v=new ContentValues();
+                v.put(MediaStore.Downloads.DISPLAY_NAME,fn);
+                v.put(MediaStore.Downloads.MIME_TYPE,"application/pdf");
+                v.put(MediaStore.Downloads.IS_PENDING,1);
+                u=getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);
+                OutputStream o=getContentResolver().openOutputStream(u);d.writeTo(o);o.close();
+                v.clear();v.put(MediaStore.Downloads.IS_PENDING,0);getContentResolver().update(u,v,null,null);
+            }else{
                 File f=new File(getExternalFilesDir(null),fn);OutputStream o=new FileOutputStream(f);d.writeTo(o);o.close();u=Uri.fromFile(f);
             }
             d.close();share(u);
