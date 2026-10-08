@@ -341,18 +341,18 @@ public class MainActivity extends Activity {
 
             p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());c=p.getCanvas();
             drawHeader(c,"روکش سند حسابداری","فرم قابل ارائه به واحد مالی",W);
-            int L3=28,R3=W-28,y=65;String[][] cover={
+            int L3=28,R3=W-28,coverY=65;String[][] cover={
                 {"واحد / دستگاه",m.optString("device")},{"نام کارشناس",m.optString("person")},{"مقصد",m.optString("destination")},
                 {"موضوع مأموریت",m.optString("subject")},{"شماره فرم",m.optString("form")},{"شماره سرویس",m.optString("service")},
                 {"بازه مأموریت",m.optString("start")+" تا "+m.optString("end")},{"مبلغ سند",money(total(m))+" ریال"},{"مبلغ به حروف",amountWords(total(m))}
             };
-            for(String[] r:cover){int hh=r[0].equals("مبلغ به حروف")?58:42;drawCell(c,r[0],L3,y,205,y+hh,true);drawCell(c,r[1],205,y,R3,y+hh,false);y+=hh;}
-            y+=12;Paint pp=pdfPaint(12,true);pp.setTextAlign(Paint.Align.RIGHT);c.drawText("وضعیت پرداخت هزینه‌های مستقیم",R3,y,pp);y+=10;
+            for(String[] r:cover){int hh=r[0].equals("مبلغ به حروف")?58:42;drawCell(c,r[0],L3,coverY,205,coverY+hh,true);drawCell(c,r[1],205,coverY,R3,coverY+hh,false);coverY+=hh;}
+            coverY+=12;Paint pp=pdfPaint(12,true);pp.setTextAlign(Paint.Align.RIGHT);c.drawText("وضعیت پرداخت هزینه‌های مستقیم",R3,coverY,pp);coverY+=10;
             String[] payRows={"هتل: "+payer(m,"hotelPayer")+"    |    بلیط رفت: "+payer(m,"goPayer"),"بلیط برگشت: "+payer(m,"backPayer")+"    |    کنسلی رفت: "+payer(m,"cancelGoPayer"),"کنسلی برگشت: "+payer(m,"cancelBackPayer")};
-            for(String s:payRows){drawCell(c,s,L3,y,R3,y+34,false);y+=34;}
-            y+=12;c.drawText("تأییدها و امضا",R3,y,pp);y+=10;
+            for(String s:payRows){drawCell(c,s,L3,coverY,R3,coverY+34,false);coverY+=34;}
+            coverY+=12;c.drawText("تأییدها و امضا",R3,coverY,pp);coverY+=10;
             String[] sig={"درخواست کننده","مدیر / مسئول","حسابداری","تأیید نهایی"};
-            for(String s:sig){drawCell(c,s,L3,y,205,y+48,true);drawCell(c,"نام و امضا: ______________________________",205,y,R3,y+48,false);y+=52;}
+            for(String s:sig){drawCell(c,s,L3,coverY,205,coverY+48,true);drawCell(c,"نام و امضا: ______________________________",205,coverY,R3,coverY+48,false);coverY+=52;}
             d.finishPage(p);
 
             String fn="Mission_"+System.currentTimeMillis()+".pdf";
