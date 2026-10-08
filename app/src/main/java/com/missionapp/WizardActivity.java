@@ -205,7 +205,7 @@ public class WizardActivity extends MainActivity {
             validate7(end.getText().toString());
             if(!data.contains(cur))data.add(cur);
             save();
-            home();
+            new AlertDialog.Builder(this).setTitle("مأموریت ثبت شد").setMessage("اطلاعات با موفقیت ذخیره شد. آیا می‌خواهید همین حالا PDF را دریافت یا ارسال کنید؟").setNegativeButton("بعداً", (d,which)->home()).setPositiveButton("دریافت PDF", (d,which)->pdf(cur)).show();
         }catch(Exception e){toast(e.getMessage());}
     }
 }
