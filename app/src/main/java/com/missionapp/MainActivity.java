@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
     void applyColors(){
         darkMode=getPreferences(0).getBoolean("darkMode",false);
         if(darkMode){
-            bg=Color.rgb(18,20,24); card=Color.rgb(30,34,40); primary=Color.rgb(66,133,210); primaryDark=Color.rgb(35,53,76);
+            bg=Color.rgb(18,20,24); card=Color.rgb(30,34,40); primary=Color.rgb(66,133,210); primaryDark=Color.rgb(190,210,235);
             border=Color.rgb(70,77,88); text=Color.rgb(238,241,245); muted=Color.rgb(178,187,198); green=Color.rgb(94,201,137); red=Color.rgb(244,112,112);
         } else {
             bg=Color.rgb(246,248,251); card=Color.WHITE; primary=Color.rgb(24,82,140); primaryDark=Color.rgb(17,62,106);
@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
     EditText ed(String hint){
         EditText v=new EditText(this); v.setHint(hint); v.setHintTextColor(Color.rgb(145,153,162));
         v.setTextSize(15); v.setTextColor(text); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        v.setSingleLine(true); v.setPadding(14,0,14,0); v.setBackground(shape(Color.WHITE,14,border));
+        v.setSingleLine(true); v.setPadding(14,0,14,0); v.setBackground(shape(card,14,border));
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         if(hint.contains("هزینه")||hint.contains("مبلغ")||hint.contains("روز")||hint.contains("شماره"))
             v.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -79,12 +79,12 @@ public class MainActivity extends Activity {
 
     Button bt(String s){
         Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(Color.WHITE);
-        v.setPadding(12,4,12,4); v.setMinHeight(52); v.setGravity(Gravity.CENTER);
+        v.setPadding(12,4,12,4); v.setMinHeight(60); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
 
     Button secondary(String s){
-        Button v=bt(s); v.setTextColor(primary); v.setBackground(shape(Color.WHITE,14,primary)); return v;
+        Button v=bt(s); v.setTextColor(primary); v.setBackground(shape(card,14,primary)); v.setMinHeight(60); v.setTextSize(15); return v;
     }
 
     Spinner spinner(String[] a){
@@ -99,7 +99,7 @@ public class MainActivity extends Activity {
         lab.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         lab.setTextColor(primaryDark);
         lab.setPadding(10,5,10,5);
-        lab.setBackground(shape(darkMode?Color.rgb(42,47,55):Color.rgb(235,240,246),8,Color.TRANSPARENT));
+        lab.setBackground(shape(darkMode?Color.rgb(48,55,65):Color.rgb(235,240,246),8,Color.TRANSPARENT));
         l.addView(lab,new LinearLayout.LayoutParams(-1,32));
         LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,52); vp.topMargin=4;
         l.addView(v,vp);
@@ -277,18 +277,25 @@ public class MainActivity extends Activity {
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
 
     void attachDatePicker(final EditText target){
-        target.setFocusable(false);
-        target.setClickable(true);
-        target.setOnClickListener(v->{
-            Calendar initial=Calendar.getInstance();
-            int[] g=jalaliToGregorianSafe(target.getText().toString());
-            if(g!=null){ initial.set(g[0],g[1]-1,g[2]); }
-            DatePickerDialog dlg=new DatePickerDialog(this,(view,year,month,day)->{
-                int[] j=gregorianToJalali(year,month+1,day);
-                target.setText(String.format(Locale.US,"%04d/%02d/%02d",j[0],j[1],j[2]));
-            },initial.get(Calendar.YEAR),initial.get(Calendar.MONTH),initial.get(Calendar.DAY_OF_MONTH));
-            dlg.show();
-        });
+        target.setFocusable(false); target.setClickable(true); target.setCursorVisible(false);
+        target.setOnClickListener(v->showJalaliDatePicker(target));
+    }
+
+    boolean jalaliLeap(int y){int r=y%33; return r==1||r==5||r==9||r==13||r==17||r==22||r==26||r==30;}
+    void showJalaliDatePicker(final EditText target){
+        int jy=1405,jm=1,jd=1;
+        int[] curj=gregorianToJalali(Calendar.getInstance().get(Calendar.YEAR),Calendar.getInstance().get(Calendar.MONTH)+1,Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
+        if(curj!=null){jy=curj[0];jm=curj[1];jd=curj[2];}
+        try{String[] p=target.getText().toString().replace("-","/").split("/");if(p.length==3){jy=Integer.parseInt(p[0]);jm=Integer.parseInt(p[1]);jd=Integer.parseInt(p[2]);}}catch(Exception ignored){}
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.HORIZONTAL);root.setGravity(Gravity.CENTER);root.setPadding(12,8,12,8);root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Spinner ys=spinner(new String[]{"1403","1404","1405","1406","1407","1408","1409","1410","1411","1412","1413","1414","1415"});
+        Spinner ms=spinner(new String[]{"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"});
+        Spinner ds=spinner(new String[]{"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31"});
+        ys.setSelection(Math.max(0,Math.min(12,jy-1403)));ms.setSelection(Math.max(0,jm-1));ds.setSelection(Math.max(0,jd-1));
+        root.addView(ds,new LinearLayout.LayoutParams(0,58,1));root.addView(ms,new LinearLayout.LayoutParams(0,58,1));root.addView(ys,new LinearLayout.LayoutParams(0,58,1));
+        AlertDialog dlg=new AlertDialog.Builder(this).setTitle("انتخاب تاریخ شمسی").setView(root).setNegativeButton("انصراف",null).setPositiveButton("تأیید",null).create();
+        dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{int y=1403+ys.getSelectedItemPosition(),m=1+ms.getSelectedItemPosition(),d=1+ds.getSelectedItemPosition();int max=m<=6?31:(m<=11?30:(jalaliLeap(y)?30:29));if(d>max)d=max;target.setText(String.format(Locale.US,"%04d/%02d/%02d",y,m,d));dlg.dismiss();}));
+        dlg.show();
     }
 
     int[] jalaliToGregorianSafe(String value){
