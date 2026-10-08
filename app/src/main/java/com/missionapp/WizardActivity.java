@@ -73,7 +73,25 @@ public class WizardActivity extends MainActivity {
         bp.setSelection(index(payers,payer(cur,"backPayer"))); cgp.setSelection(index(payers,payer(cur,"cancelGoPayer")));
         cbp.setSelection(index(payers,payer(cur,"cancelBackPayer")));
         attachDatePicker(start); attachDatePicker(end);
+        attachTimePicker(startTime); attachTimePicker(endTime);
         suburb=new CheckBox(this); suburb.setText("مأموریت حومه تهران"); suburb.setTextColor(text); suburb.setTextSize(15); suburb.setChecked(cur.optBoolean("suburb",false));
+    }
+
+
+    void attachTimePicker(final EditText target){
+        target.setFocusable(false);
+        target.setClickable(true);
+        target.setOnClickListener(v->{
+            Calendar now=Calendar.getInstance();
+            try{
+                String[] p=target.getText().toString().split(":");
+                if(p.length==2){now.set(Calendar.HOUR_OF_DAY,Integer.parseInt(p[0]));now.set(Calendar.MINUTE,Integer.parseInt(p[1]));}
+            }catch(Exception ignored){}
+            TimePickerDialog dlg=new TimePickerDialog(this,(view,hour,minute)->{
+                target.setText(String.format(Locale.US,"%02d:%02d",hour,minute));
+            },now.get(Calendar.HOUR_OF_DAY),now.get(Calendar.MINUTE),true);
+            dlg.show();
+        });
     }
 
     void renderStep(){
