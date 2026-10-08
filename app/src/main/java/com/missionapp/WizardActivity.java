@@ -2,6 +2,7 @@ package com.missionapp;
 
 import android.os.*;
 import android.app.TimePickerDialog;
+import android.app.DatePickerDialog;
 import android.graphics.*;
 import android.view.*;
 import android.widget.*;
@@ -46,9 +47,9 @@ public class WizardActivity extends MainActivity {
         LinearLayout nav=new LinearLayout(this); nav.setOrientation(LinearLayout.HORIZONTAL); nav.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         backBtn=secondary("← قبلی"); backBtn.setOnClickListener(v->{if(step>1){step--;renderStep();}});
         nextBtn=bt("ادامه →"); nextBtn.setOnClickListener(v->{if(validateStep()){if(step<4){step++;renderStep();}else{finishMission();}}});
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,56,1));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,64,1));
         Space sp=new Space(this); nav.addView(sp,new LinearLayout.LayoutParams(8,1));
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,56,1));
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,64,1));
         box.addView(nav);
         renderStep();
     }
@@ -142,12 +143,12 @@ public class WizardActivity extends MainActivity {
             summaryLine(c,"سایر هزینه‌ها",money(expenseSum(cur,null))+" ریال");
             TextView total=tv("💰 جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(8,22,8,22);c.addView(total);
             contentBox.addView(c);
-            TextView note=tv("با زدن «ثبت نهایی»، مأموریت ذخیره می‌شود. سپس می‌توانید PDF آن را بسازید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note);
+            TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("📄  دریافت / اشتراک PDF"); pdfBtn.setMinHeight(64); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,64));
         }
         backBtn.setVisibility(step==1?View.INVISIBLE:View.VISIBLE);
         nextBtn.setText(step==4?"✓ ثبت نهایی":"ادامه →");
-        if(step==4) nextBtn.setBackground(shape(green,14,Color.TRANSPARENT));
-        else nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT));
+        if(step==4) { nextBtn.setBackground(shape(green,14,Color.TRANSPARENT)); nextBtn.setTextSize(15); }
+        else { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextSize(16); }
         stepTitle.invalidate();
     }
 
