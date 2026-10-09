@@ -131,12 +131,15 @@ public class MainActivity extends Activity {
     }
 
     void add2(LinearLayout r,String n1,View v1,String n2,View v2){
-        // Stack paired fields vertically on narrow phone screens to prevent clipped labels.
-        r.setOrientation(LinearLayout.VERTICAL);
+        // Compact two-column layout: labels wrap, but the form does not grow excessively tall.
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         LinearLayout a=field(n1,v1),b=field(n2,v2);
-        r.addView(a,new LinearLayout.LayoutParams(-1,-2));
-        LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);
-        bp.topMargin=4;
+        LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1f);
+        ap.setMargins(3,0,3,0);
+        LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-2,1f);
+        bp.setMargins(3,0,3,0);
+        r.addView(a,ap);
         r.addView(b,bp);
     }
 
@@ -144,15 +147,9 @@ public class MainActivity extends Activity {
         box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(12,12,12,12);
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
-        scrollRoot.setOnApplyWindowInsetsListener((v,insets)->{
-            int topInset=insets.getSystemWindowInsetTop();
-            int bottomInset=insets.getSystemWindowInsetBottom();
-            box.setPadding(12,12+topInset,12,12+bottomInset);
-            return insets;
-        });
+        // Keep Android status/navigation bars visible; the system already insets this content.
         getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(scrollRoot);
-        scrollRoot.requestApplyInsets();
         LinearLayout bar=new LinearLayout(this); bar.setPadding(14,10,14,10); bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackground(shape(palette(R.color.navy),16,Color.TRANSPARENT));
         bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
