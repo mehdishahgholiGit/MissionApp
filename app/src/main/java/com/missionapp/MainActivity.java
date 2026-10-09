@@ -13,7 +13,6 @@ import android.text.style.*;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
-import android.webkit.WebView;
 import org.json.*;
 import java.io.*;
 import java.util.*;
