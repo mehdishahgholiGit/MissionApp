@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
     }
 
     Button bt(String s){
-        Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(Color.WHITE);
+        Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(palette(R.color.navy));
         v.setPadding(12,4,12,4); v.setMinHeight(48); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
