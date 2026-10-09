@@ -29,6 +29,13 @@ public class WizardActivity extends MainActivity {
     }
 
     void buildWizard(){
+        // Explicitly disable edge-to-edge/fullscreen drawing on Android versions that
+        // otherwise allow content to extend beneath status/navigation bars.
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().getDecorView().setSystemUiVisibility(0);
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
+            getWindow().setDecorFitsSystemWindows(true);
+        }
         base(cur.length()==0?"مأموریت جدید":"ویرایش مأموریت");
         TextView progress=tv("مرحله "+step+" از ۴",14);
         progress.setTextColor(primary);
@@ -86,6 +93,7 @@ public class WizardActivity extends MainActivity {
         formScroll.setBackgroundColor(bg);
         formScroll.addView(box);
         page.setPadding(8,8,8,8);
+        page.setFitsSystemWindows(true);
         formScroll.setClipToPadding(false);
         page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1f));
         nav.setPadding(4,4,4,4);
@@ -100,6 +108,7 @@ public class WizardActivity extends MainActivity {
         page.addView(nav,navParams);
         // Keep navigation as a sibling of the scroll view so it stays at the bottom.
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(page);
     }
