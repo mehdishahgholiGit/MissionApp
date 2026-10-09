@@ -57,11 +57,21 @@ public class WizardActivity extends MainActivity {
             .setNegativeButton("ادامه فرم", (d,w)->{})
             .setPositiveButton("صفحه اصلی", (d,w)->home())
             .show());
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,52,1.2f));
-        Space sp=new Space(this); nav.addView(sp,new LinearLayout.LayoutParams(5,1));
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,52,1));
-        Space sp2=new Space(this); nav.addView(sp2,new LinearLayout.LayoutParams(5,1));
-        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,52,0.8f));
+        // Equal-width controls prevent the Home label from being squeezed off-screen.
+        for(Button b : new Button[]{nextBtn,backBtn,homeBtn}){
+            b.setMinWidth(0);
+            b.setMinimumWidth(0);
+            b.setMinHeight(48);
+            b.setMinimumHeight(48);
+            b.setPadding(2,2,2,2);
+            b.setTextSize(13);
+        }
+        nextBtn.setText("ادامه");
+        backBtn.setText("قبلی");
+        homeBtn.setText("⌂ خانه");
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,52,1f));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,52,1f));
+        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,52,1f));
         box.addView(nav);
         renderStep();
 
@@ -75,16 +85,20 @@ public class WizardActivity extends MainActivity {
         formScroll.setFillViewport(false);
         formScroll.setBackgroundColor(bg);
         formScroll.addView(box);
-        page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1));
-        nav.setPadding(12,8,12,8);
+        page.setPadding(8,8,8,8);
+        formScroll.setClipToPadding(false);
+        page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1f));
+        nav.setPadding(4,4,4,4);
+        nav.setGravity(Gravity.CENTER_VERTICAL);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setBackground(shape(card,16,border));
         nav.setElevation(8);
         page.setFocusableInTouchMode(true);
         nav.setFocusable(false);
-        page.addView(nav,new LinearLayout.LayoutParams(-1,-2));
-        // The Activity window already fits below the status bar and above system navigation.
-        // Avoid applying system insets a second time, which can push the form and actions away.
-        nav.setPadding(8,6,8,6);
+        LinearLayout.LayoutParams navParams=new LinearLayout.LayoutParams(-1,56);
+        navParams.topMargin=6;
+        page.addView(nav,navParams);
+        // Keep navigation as a sibling of the scroll view so it stays at the bottom.
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(page);
