@@ -48,9 +48,10 @@ public class WizardActivity extends MainActivity {
         LinearLayout nav=new LinearLayout(this); nav.setOrientation(LinearLayout.HORIZONTAL); nav.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         backBtn=secondary("← قبلی"); backBtn.setOnClickListener(v->{if(step>1){step--;renderStep();}});
         nextBtn=bt("ادامه →"); nextBtn.setOnClickListener(v->{if(validateStep()){if(step<4){step++;renderStep();}else{finishMission();}}});
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,64,1));
+        // In RTL, the first child is placed on the right: keep Continue/Confirm on the right.
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,56,1));
         Space sp=new Space(this); nav.addView(sp,new LinearLayout.LayoutParams(8,1));
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,64,1));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,56,1));
         box.addView(nav);
         renderStep();
 
@@ -66,8 +67,12 @@ public class WizardActivity extends MainActivity {
         formScroll.addView(box);
         page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1));
         nav.setPadding(12,8,12,8);
-        nav.setBackgroundColor(bg);
+        nav.setBackground(shape(card,16,border));
+        nav.setElevation(8);
+        page.setFocusableInTouchMode(true);
+        nav.setFocusable(false);
         page.addView(nav,new LinearLayout.LayoutParams(-1,-2));
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         setContentView(page);
     }
 
@@ -167,6 +172,8 @@ public class WizardActivity extends MainActivity {
         if(step==4) { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(15); }
         else { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(16); }
         stepTitle.invalidate();
+        // Start each step at the top while keeping the navigation bar reachable.
+        if(scrollRoot!=null) scrollRoot.post(()->scrollRoot.scrollTo(0,0));
     }
 
     LinearLayout sectionLocal(String title){
