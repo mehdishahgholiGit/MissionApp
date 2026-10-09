@@ -19,6 +19,7 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     LinearLayout box;
+    ScrollView scrollRoot;
     JSONObject cur;
     ArrayList<JSONObject> data = new ArrayList<>();
 
@@ -141,8 +142,8 @@ public class MainActivity extends Activity {
     void base(String title){
         box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(12,12,12,24);
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        ScrollView root=new ScrollView(this); root.setFillViewport(true); root.setBackgroundColor(bg); root.addView(box);
-        setContentView(root);
+        scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
+        setContentView(scrollRoot);
         LinearLayout bar=new LinearLayout(this); bar.setPadding(14,10,14,10); bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackground(shape(palette(R.color.navy),16,Color.TRANSPARENT));
         TextView h=tv(title,21); h.setTextColor(Color.WHITE); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
