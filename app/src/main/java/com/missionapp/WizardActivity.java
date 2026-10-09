@@ -53,6 +53,22 @@ public class WizardActivity extends MainActivity {
         nav.addView(nextBtn,new LinearLayout.LayoutParams(0,64,1));
         box.addView(nav);
         renderStep();
+
+        // Keep wizard actions fixed and reachable while the form itself scrolls.
+        box.removeView(nav);
+        scrollRoot.removeView(box);
+        LinearLayout page=new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setBackgroundColor(bg);
+        ScrollView formScroll=new ScrollView(this);
+        formScroll.setFillViewport(false);
+        formScroll.setBackgroundColor(bg);
+        formScroll.addView(box);
+        page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1));
+        nav.setPadding(12,8,12,8);
+        nav.setBackgroundColor(bg);
+        page.addView(nav,new LinearLayout.LayoutParams(-1,-2));
+        setContentView(page);
     }
 
     void makeFields(){
