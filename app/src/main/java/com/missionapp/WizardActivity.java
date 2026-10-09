@@ -164,8 +164,8 @@ public class WizardActivity extends MainActivity {
         }
         backBtn.setVisibility(step==1?View.INVISIBLE:View.VISIBLE);
         nextBtn.setText(step==4?"✓ ثبت نهایی":"ادامه →");
-        if(step==4) { nextBtn.setBackground(shape(green,14,Color.TRANSPARENT)); nextBtn.setTextSize(15); }
-        else { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextSize(16); }
+        if(step==4) { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(15); }
+        else { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(16); }
         stepTitle.invalidate();
     }
 
