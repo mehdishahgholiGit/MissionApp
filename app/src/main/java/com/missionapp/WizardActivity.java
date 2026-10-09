@@ -158,9 +158,9 @@ public class WizardActivity extends MainActivity {
             summaryLine(c,"مدت",days.getText().toString()+" روز / "+holiday.getText().toString()+" روز تعطیل");
             summaryLine(c,"حق مأموریت",money(missionPay(cur))+" ریال");
             summaryLine(c,"سایر هزینه‌ها",money(expenseSum(cur,null))+" ریال");
-            TextView total=tv("💰 جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(8,22,8,22);c.addView(total);
+            TextView total=tv("جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(8,22,8,22);c.addView(total);
             contentBox.addView(c);
-            TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("📄  دریافت / اشتراک PDF"); pdfBtn.setMinHeight(64); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,64));
+            TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("دریافت / اشتراک PDF"); pdfBtn.setMinHeight(64); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,64));
         }
         backBtn.setVisibility(step==1?View.INVISIBLE:View.VISIBLE);
         nextBtn.setText(step==4?"✓ ثبت نهایی":"ادامه →");
