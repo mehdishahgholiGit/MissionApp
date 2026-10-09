@@ -4,8 +4,7 @@
     <group android:scaleX="0.15" android:scaleY="0.15" android:translateX="15.6" android:translateY="15.6">
         <path android:pathData="M256,66 A190,190 0,1 1,255.99 66"
             android:fillColor="#00000000" android:strokeColor="#00B2A9" android:strokeWidth="34"
-            android:strokeLineCap="butt" android:strokeLineJoin="round"
-            android:strokeLineDashArray="29.8,20" />
+            android:strokeLineCap="butt" android:strokeLineJoin="round" />
         <path android:pathData="M256,84 A172,172 0,1 1,255.99 84" android:fillColor="#12304D"/>
         <path android:pathData="M256,130 C200,130 160,172 160,226 C160,290 230,340 256,382 C282,340 352,290 352,226 C352,172 312,130 256,130 Z" android:fillColor="#FF6A13"/>
         <path android:pathData="M256,180 A46,46 0,1 1,255.99 180" android:fillColor="#FFFFFF"/>
