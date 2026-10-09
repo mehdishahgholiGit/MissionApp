@@ -30,18 +30,21 @@ public class MainActivity extends Activity {
     String[] cats={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
     String[] tehranItems={"بازار (خرید لوازم و ابزار کار)","ترمینال یا فرودگاه به منزل","سایت مشتری به سایت مشتری","سایت مشتری به شرکت","سایت مشتری به منزل","شرکت به ترمینال یا فرودگاه","شرکت به سایت مشتری","شرکت به منزل","فرودگاه یا ترمینال به شرکت","منزل به ترمینال یا فرودگاه","منزل به سایت مشتری","منزل به شرکت"};
 
-    int bg=Color.rgb(246,248,251), card=Color.WHITE, primary=Color.rgb(24,82,140), primaryDark=Color.rgb(17,62,106), border=Color.rgb(215,222,230), text=Color.rgb(35,43,52), muted=Color.rgb(92,104,117), green=Color.rgb(31,116,72), red=Color.rgb(176,48,48);
+    int bg, card, primary, primaryDark, border, text, muted, green, red;
     boolean darkMode=false;
-
+    int palette(int id){ return getResources().getColor(id, getTheme()); }
     void applyColors(){
         darkMode=getPreferences(0).getBoolean("darkMode",false);
         if(darkMode){
-            bg=Color.rgb(18,20,24); card=Color.rgb(30,34,40); primary=Color.rgb(66,133,210); primaryDark=Color.rgb(190,210,235);
-            border=Color.rgb(70,77,88); text=Color.rgb(238,241,245); muted=Color.rgb(178,187,198); green=Color.rgb(94,201,137); red=Color.rgb(244,112,112);
+            bg=palette(R.color.navy); card=palette(R.color.navy_surface); primary=palette(R.color.orange); primaryDark=palette(R.color.light_text);
+            border=palette(R.color.dark_divider); text=palette(R.color.light_text); muted=palette(R.color.dark_muted); green=palette(R.color.teal); red=palette(R.color.orange);
         } else {
-            bg=Color.rgb(246,248,251); card=Color.WHITE; primary=Color.rgb(24,82,140); primaryDark=Color.rgb(17,62,106);
-            border=Color.rgb(215,222,230); text=Color.rgb(35,43,52); muted=Color.rgb(92,104,117); green=Color.rgb(31,116,72); red=Color.rgb(176,48,48);
+            bg=palette(R.color.background); card=palette(R.color.white); primary=palette(R.color.orange); primaryDark=palette(R.color.navy);
+            border=palette(R.color.divider); text=palette(R.color.navy); muted=palette(R.color.muted); green=palette(R.color.teal_dark); red=palette(R.color.orange);
         }
+        getWindow().setStatusBarColor(palette(R.color.navy));
+        getWindow().setNavigationBarColor(palette(R.color.navy));
+        getWindow().getDecorView().setSystemUiVisibility(darkMode ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
     }
 
     void toggleDarkMode(){
@@ -68,7 +71,7 @@ public class MainActivity extends Activity {
     }
 
     EditText ed(String hint){
-        EditText v=new EditText(this); v.setHint(hint); v.setHintTextColor(Color.rgb(145,153,162));
+        EditText v=new EditText(this); v.setHint(hint); v.setHintTextColor(palette(R.color.muted));
         v.setTextSize(15); v.setTextColor(text); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         v.setSingleLine(true); v.setPadding(14,0,14,0); v.setBackground(shape(card,14,border));
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -79,7 +82,7 @@ public class MainActivity extends Activity {
 
     Button bt(String s){
         Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(Color.WHITE);
-        v.setPadding(12,4,12,4); v.setMinHeight(60); v.setGravity(Gravity.CENTER);
+        v.setPadding(12,4,12,4); v.setMinHeight(48); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
 
@@ -99,7 +102,7 @@ public class MainActivity extends Activity {
         lab.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         lab.setTextColor(primaryDark);
         lab.setPadding(10,5,10,5);
-        lab.setBackground(shape(darkMode?Color.rgb(48,55,65):Color.rgb(235,240,246),8,Color.TRANSPARENT));
+        lab.setBackground(shape(darkMode?palette(R.color.navy_surface):palette(R.color.background),8,Color.TRANSPARENT));
         lab.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         lab.setMinHeight(38);
         lab.setSingleLine(false);
@@ -141,7 +144,7 @@ public class MainActivity extends Activity {
         ScrollView root=new ScrollView(this); root.setFillViewport(true); root.setBackgroundColor(bg); root.addView(box);
         setContentView(root);
         LinearLayout bar=new LinearLayout(this); bar.setPadding(14,10,14,10); bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackground(shape(primaryDark,16,Color.TRANSPARENT));
+        bar.setBackground(shape(palette(R.color.navy),16,Color.TRANSPARENT));
         TextView h=tv(title,21); h.setTextColor(Color.WHITE); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         bar.addView(h,new LinearLayout.LayoutParams(0,60,1)); box.addView(bar);
         Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(1,12));
@@ -275,7 +278,7 @@ public class MainActivity extends Activity {
         list.removeAllViews(); JSONArray a=cur.optJSONArray("expenses");
         if(a!=null) for(int i=0;i<a.length();i++){
             final int k=i; JSONObject o=a.optJSONObject(i);
-            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(8,6,8,6);r.setBackground(shape(Color.rgb(249,250,252),12,border));
+            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(8,6,8,6);r.setBackground(shape(palette(R.color.background),12,border));
             TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال",13);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
             Button del=secondary("حذف");del.setTextColor(red);del.setMinHeight(44);del.setOnClickListener(v->{a.remove(k);render(list,sum);});
             r.addView(t,new LinearLayout.LayoutParams(0,-2,1));r.addView(del,new LinearLayout.LayoutParams(80,48));list.addView(r);Space s=new Space(this);list.addView(s,new LinearLayout.LayoutParams(1,6));
