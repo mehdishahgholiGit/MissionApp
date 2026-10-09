@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
 
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTextColor(text);
-        v.setPadding(4,4,4,4); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        v.setPadding(4,2,4,2); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); return v;
     }
 
@@ -99,20 +99,20 @@ public class MainActivity extends Activity {
     }
 
     LinearLayout field(String name,View v){
-        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,7,0,7);
+        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,3,0,3);
         TextView lab=label(name);
         lab.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         lab.setTextColor(primaryDark);
         lab.setPadding(10,5,10,5);
         lab.setBackground(shape(darkMode?palette(R.color.navy_surface):palette(R.color.background),8,Color.TRANSPARENT));
         lab.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        lab.setMinHeight(38);
+        lab.setMinHeight(30);
         lab.setSingleLine(false);
         lab.setMaxLines(2);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
         lp.bottomMargin=6;
         l.addView(lab,lp);
-        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,52); vp.topMargin=0;
+        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,46); vp.topMargin=0;
         l.addView(v,vp);
         return l;
     }
@@ -141,10 +141,18 @@ public class MainActivity extends Activity {
     }
 
     void base(String title){
-        box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(12,12,12,24);
+        box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(12,12,12,12);
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
+        scrollRoot.setOnApplyWindowInsetsListener((v,insets)->{
+            int topInset=insets.getSystemWindowInsetTop();
+            int bottomInset=insets.getSystemWindowInsetBottom();
+            box.setPadding(12,12+topInset,12,12+bottomInset);
+            return insets;
+        });
+        getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(scrollRoot);
+        scrollRoot.requestApplyInsets();
         LinearLayout bar=new LinearLayout(this); bar.setPadding(14,10,14,10); bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackground(shape(palette(R.color.navy),16,Color.TRANSPARENT));
         bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
