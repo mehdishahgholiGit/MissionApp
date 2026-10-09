@@ -82,18 +82,12 @@ public class WizardActivity extends MainActivity {
         page.setFocusableInTouchMode(true);
         nav.setFocusable(false);
         page.addView(nav,new LinearLayout.LayoutParams(-1,-2));
-        // Respect Android system-bar insets so the primary action is never hidden
-        // behind gesture/navigation bars on different devices and screen sizes.
-        page.setOnApplyWindowInsetsListener((v, insets) -> {
-            int topInset = insets.getSystemWindowInsetTop();
-            int bottomInset = insets.getSystemWindowInsetBottom();
-            page.setPadding(0,topInset,0,0);
-            nav.setPadding(8,6,8,6 + bottomInset);
-            return insets;
-        });
+        // The Activity window already fits below the status bar and above system navigation.
+        // Avoid applying system insets a second time, which can push the form and actions away.
+        nav.setPadding(8,6,8,6);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(page);
-        page.requestApplyInsets();
     }
 
     void makeFields(){
