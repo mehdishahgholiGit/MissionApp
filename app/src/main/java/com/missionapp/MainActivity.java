@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
         recreate();
     }
 
-    public void onCreate(Bundle b){ super.onCreate(b); applyColors(); load(); home(); }
+    public void onCreate(Bundle b){ super.onCreate(b); darkMode=getPreferences(0).getBoolean("darkMode",false); setTheme(darkMode?R.style.AppThemeDark:R.style.AppTheme); applyColors(); load(); home(); }
 
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTextColor(text);
