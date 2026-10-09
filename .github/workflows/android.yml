@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - ui/brand-refresh
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
