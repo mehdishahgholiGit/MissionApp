@@ -1,0 +1,14 @@
+<resources>
+    <color name="navy">#0B1F33</color>
+    <color name="navy_surface">#12304D</color>
+    <color name="orange">#FF6A13</color>
+    <color name="teal">#00B2A9</color>
+    <color name="teal_dark">#00706A</color>
+    <color name="background">#F2F5F7</color>
+    <color name="white">#FFFFFF</color>
+    <color name="divider">#C9D3DB</color>
+    <color name="muted">#526575</color>
+    <color name="light_text">#FFFFFF</color>
+    <color name="dark_divider">#526575</color>
+    <color name="dark_muted">#C9D3DB</color>
+</resources>
