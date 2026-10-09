@@ -9,4 +9,4 @@
         <item name="android:layoutDirection">rtl</item>
         <item name="android:textDirection">rtl</item>
     </style>
-</resources>
+    <style name="AppThemeDark" parent="android:style/Theme.Material.NoActionBar">\n        <item name="android:fontFamily">sans</item>\n        <item name="android:colorAccent">@color/teal</item>\n        <item name="android:statusBarColor">@color/navy</item>\n        <item name="android:navigationBarColor">@color/navy</item>\n        <item name="android:windowLightStatusBar">false</item>\n        <item name="android:windowActionModeOverlay">true</item>\n        <item name="android:layoutDirection">rtl</item>\n        <item name="android:textDirection">rtl</item>\n    </style>\n</resources>
