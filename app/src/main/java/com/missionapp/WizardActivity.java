@@ -19,7 +19,7 @@ public class WizardActivity extends MainActivity {
     int step=1;
 
     TextView stepTitle, stepHint;
-    Button nextBtn, backBtn;
+    Button nextBtn, backBtn, homeBtn;
     LinearLayout expenseList;
     TextView expenseSum;
 
@@ -48,10 +48,20 @@ public class WizardActivity extends MainActivity {
         LinearLayout nav=new LinearLayout(this); nav.setOrientation(LinearLayout.HORIZONTAL); nav.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         backBtn=secondary("← قبلی"); backBtn.setOnClickListener(v->{if(step>1){step--;renderStep();}});
         nextBtn=bt("ادامه →"); nextBtn.setOnClickListener(v->{if(validateStep()){if(step<4){step++;renderStep();}else{finishMission();}}});
-        // In RTL, the first child is placed on the right: keep Continue/Confirm on the right.
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,56,1));
-        Space sp=new Space(this); nav.addView(sp,new LinearLayout.LayoutParams(8,1));
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,56,1));
+        // Three persistent actions: Continue/Confirm, Previous, and Home.
+        homeBtn=secondary("⌂ خانه");
+        homeBtn.setTextSize(13);
+        homeBtn.setOnClickListener(v -> new AlertDialog.Builder(this)
+            .setTitle("بازگشت به خانه")
+            .setMessage("اطلاعات ثبت‌نشده ذخیره نمی‌شود. به صفحه اصلی برمی‌گردید؟")
+            .setNegativeButton("ادامه فرم", (d,w)->{})
+            .setPositiveButton("صفحه اصلی", (d,w)->home())
+            .show());
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,52,1.2f));
+        Space sp=new Space(this); nav.addView(sp,new LinearLayout.LayoutParams(5,1));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,52,1));
+        Space sp2=new Space(this); nav.addView(sp2,new LinearLayout.LayoutParams(5,1));
+        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,52,0.8f));
         box.addView(nav);
         renderStep();
 
@@ -75,8 +85,10 @@ public class WizardActivity extends MainActivity {
         // Respect Android system-bar insets so the primary action is never hidden
         // behind gesture/navigation bars on different devices and screen sizes.
         page.setOnApplyWindowInsetsListener((v, insets) -> {
+            int topInset = insets.getSystemWindowInsetTop();
             int bottomInset = insets.getSystemWindowInsetBottom();
-            nav.setPadding(12,8,12,8 + bottomInset);
+            page.setPadding(0,topInset,0,0);
+            nav.setPadding(8,6,8,6 + bottomInset);
             return insets;
         });
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
