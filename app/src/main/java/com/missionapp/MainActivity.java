@@ -155,7 +155,7 @@ public class MainActivity extends Activity {
         brandMark.setOverScrollMode(View.OVER_SCROLL_NEVER);
         brandMark.loadDataWithBaseURL("file:///android_asset/brand/","<html><body style='margin:0;background:transparent;display:flex;align-items:center;justify-content:center'><img src='logo-full.svg' style='width:48px;height:48px;object-fit:contain'/></body></html>","text/html","UTF-8",null);
         bar.addView(brandMark,new LinearLayout.LayoutParams(52,52));
-        TextView h=tv(title,21); h.setTextColor(Color.WHITE); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        TextView h=tv(title,21); h.setTextColor(palette(R.color.white)); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         bar.addView(h,new LinearLayout.LayoutParams(0,60,1)); box.addView(bar);
         Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(1,12));
     }
