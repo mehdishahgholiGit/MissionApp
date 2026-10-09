@@ -100,8 +100,14 @@ public class MainActivity extends Activity {
         lab.setTextColor(primaryDark);
         lab.setPadding(10,5,10,5);
         lab.setBackground(shape(darkMode?Color.rgb(48,55,65):Color.rgb(235,240,246),8,Color.TRANSPARENT));
-        l.addView(lab,new LinearLayout.LayoutParams(-1,32));
-        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,52); vp.topMargin=4;
+        lab.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        lab.setMinHeight(38);
+        lab.setSingleLine(false);
+        lab.setMaxLines(2);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.bottomMargin=6;
+        l.addView(lab,lp);
+        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,52); vp.topMargin=0;
         l.addView(v,vp);
         return l;
     }
@@ -120,8 +126,13 @@ public class MainActivity extends Activity {
     }
 
     void add2(LinearLayout r,String n1,View v1,String n2,View v2){
+        // Stack paired fields vertically on narrow phone screens to prevent clipped labels.
+        r.setOrientation(LinearLayout.VERTICAL);
         LinearLayout a=field(n1,v1),b=field(n2,v2);
-        r.addView(a,new LinearLayout.LayoutParams(0,-2,1)); r.addView(b,new LinearLayout.LayoutParams(0,-2,1));
+        r.addView(a,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);
+        bp.topMargin=4;
+        r.addView(b,bp);
     }
 
     void base(String title){
