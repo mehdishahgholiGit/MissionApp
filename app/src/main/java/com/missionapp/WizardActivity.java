@@ -72,8 +72,16 @@ public class WizardActivity extends MainActivity {
         page.setFocusableInTouchMode(true);
         nav.setFocusable(false);
         page.addView(nav,new LinearLayout.LayoutParams(-1,-2));
+        // Respect Android system-bar insets so the primary action is never hidden
+        // behind gesture/navigation bars on different devices and screen sizes.
+        page.setOnApplyWindowInsetsListener((v, insets) -> {
+            int bottomInset = insets.getSystemWindowInsetBottom();
+            nav.setPadding(12,8,12,8 + bottomInset);
+            return insets;
+        });
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         setContentView(page);
+        page.requestApplyInsets();
     }
 
     void makeFields(){
