@@ -45,7 +45,7 @@ public class MainActivity extends Activity {
         }
         getWindow().setStatusBarColor(palette(R.color.navy));
         getWindow().setNavigationBarColor(palette(R.color.navy));
-        getWindow().getDecorView().setSystemUiVisibility(darkMode ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        getWindow().getDecorView().setSystemUiVisibility(0);
     }
 
     void toggleDarkMode(){
@@ -83,17 +83,17 @@ public class MainActivity extends Activity {
 
     Button bt(String s){
         Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(palette(R.color.navy));
-        v.setPadding(12,4,12,4); v.setMinHeight(48); v.setGravity(Gravity.CENTER);
+        v.setPadding(12,4,12,4); v.setMinHeight(48); v.setMinimumHeight(48); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
 
     Button secondary(String s){
-        Button v=bt(s); v.setTextColor(primary); v.setBackground(shape(card,14,primary)); v.setMinHeight(60); v.setTextSize(15); return v;
+        Button v=bt(s); v.setTextColor(palette(darkMode?R.color.teal:R.color.teal_dark)); v.setBackground(shape(card,14,palette(darkMode?R.color.teal:R.color.teal_dark))); v.setMinHeight(48); v.setTextSize(15); return v;
     }
 
     Spinner spinner(String[] a){
         Spinner s=new Spinner(this); s.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,a));
-        s.setBackground(shape(Color.WHITE,14,border)); s.setPadding(10,0,10,0); s.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        s.setBackground(shape(card,14,border)); s.setPadding(10,0,10,0); s.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         return s;
     }
 
@@ -186,7 +186,7 @@ public class MainActivity extends Activity {
         base("مدیریت مأموریت و هزینه‌ها");
         TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(4,0,4,12); box.addView(intro);
 
-        Button mode=secondary(darkMode?"☀  حالت روشن":"☾  حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
+        Button mode=secondary(darkMode?"تغییر به حالت روشن":"تغییر به حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
         Space modeSp=new Space(this); box.addView(modeSp,new LinearLayout.LayoutParams(1,8));
 
         Button n=bt("＋  ثبت مأموریت جدید"); n.setOnClickListener(v->{cur=new JSONObject();try{cur.put("expenses",new JSONArray());}catch(Exception e){}edit();}); box.addView(n);
@@ -259,7 +259,7 @@ public class MainActivity extends Activity {
                 if(!data.contains(cur))data.add(cur); save(); Toast.makeText(this,"مأموریت ذخیره شد",Toast.LENGTH_SHORT).show(); home();
             }catch(Exception e){toast(e.getMessage());}
         });
-        Button pdf=secondary("▣  تولید PDF با فرم رسمی"); pdf.setOnClickListener(v->pdf(cur));
+        Button pdf=secondary("تولید PDF با فرم رسمی"); pdf.setOnClickListener(v->pdf(cur));
         Button backBtn=secondary("‹  بازگشت"); backBtn.setOnClickListener(v->home());
         actions.addView(save); Space x=new Space(this);actions.addView(x,new LinearLayout.LayoutParams(1,6));actions.addView(pdf);Space y=new Space(this);actions.addView(y,new LinearLayout.LayoutParams(1,6));actions.addView(backBtn);
     }
