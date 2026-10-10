@@ -57,13 +57,13 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle b){ super.onCreate(b); darkMode=getPreferences(0).getBoolean("darkMode",false); setTheme(darkMode?R.style.AppThemeDark:R.style.AppTheme); applyColors(); load(); home(); }
 
     TextView tv(String s,float z){
-        TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTextColor(text);
+        TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextColor(text);
         v.setPadding(4,2,4,2); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); return v;
     }
 
     TextView label(String s){
-        TextView v=tv(s,13); v.setTextColor(muted); v.setPadding(2,0,2,5);
+        TextView v=tv(s,15); v.setTextColor(muted); v.setPadding(2,0,2,5);
         return v;
     }
 
@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
 
     EditText ed(String hint){
         EditText v=new EditText(this); v.setHint(hint); v.setHintTextColor(palette(R.color.muted));
-        v.setTextSize(15); v.setTextColor(text); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextSize(18); v.setTextColor(text); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         v.setSingleLine(true); v.setPadding(14,0,14,0); v.setBackground(shape(card,14,border));
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         if(hint.contains("هزینه")||hint.contains("مبلغ")||hint.contains("روز")||hint.contains("شماره"))
@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
     }
 
     Button bt(String s){
-        Button v=new Button(this); v.setText(s); v.setTextSize(14); v.setAllCaps(false); v.setTextColor(palette(R.color.navy));
+        Button v=new Button(this); v.setText(s); v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextSize(17); v.setAllCaps(false); v.setTextColor(palette(R.color.navy));
         v.setPadding(12,4,12,4); v.setMinHeight(48); v.setMinimumHeight(48); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
@@ -101,18 +101,18 @@ public class MainActivity extends Activity {
     LinearLayout field(String name,View v){
         LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,3,0,3);
         TextView lab=label(name);
-        lab.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        lab.setTypeface(Typeface.create("tahoma",Typeface.NORMAL),Typeface.BOLD);
         lab.setTextColor(primaryDark);
         lab.setPadding(10,5,10,5);
         lab.setBackground(shape(darkMode?palette(R.color.navy_surface):palette(R.color.background),8,Color.TRANSPARENT));
         lab.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        lab.setMinHeight(30);
+        lab.setMinHeight(38);
         lab.setSingleLine(false);
         lab.setMaxLines(2);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
         lp.bottomMargin=6;
         l.addView(lab,lp);
-        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,46); vp.topMargin=0;
+        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,54); vp.topMargin=0;
         l.addView(v,vp);
         return l;
     }
@@ -215,8 +215,8 @@ public class MainActivity extends Activity {
         } else {
             for(JSONObject m:data){
                 LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(16,12,16,12); c.setBackground(shape(card,16,border));
-                TextView a=tv(m.optString("subject","بدون موضوع"),16); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-                TextView b=tv("مقصد: "+m.optString("destination","")+"    |    کارشناس: "+m.optString("person",""),13); b.setTextColor(muted);
+                TextView a=tv("فرم "+(m.optString("form").isEmpty()?"بدون شماره":m.optString("form"))+" — "+m.optString("subject","بدون موضوع"),18); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                TextView b=tv("شماره فرم: "+(m.optString("form").isEmpty()?"—":m.optString("form"))+"    |    مقصد: "+m.optString("destination","")+"    |    کارشناس: "+m.optString("person",""),15); b.setTextColor(muted);
                 TextView z=tv("جمع قابل پرداخت: "+money(total(m))+" ریال",14); z.setTextColor(green); z.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 c.addView(a); c.addView(b); c.addView(z);
                 c.setOnClickListener(v->{cur=m;edit();}); box.addView(c);
@@ -551,7 +551,9 @@ public class MainActivity extends Activity {
             p=d.startPage(new PdfDocument.PageInfo.Builder(W,H,page++).create());
             drawCoverPage(p.getCanvas(),m,W,H); d.finishPage(p);
 
-            String fn="Mission_"+System.currentTimeMillis()+".pdf"; Uri u;
+            String formNo=m.optString("form","").trim().replaceAll("[^\\p{L}\\p{N}_-]","_");
+            if(formNo.isEmpty()) formNo="بدون_شماره";
+            String fn="M"+formNo+".pdf"; Uri u;
             if(Build.VERSION.SDK_INT>=29){
                 ContentValues v=new ContentValues();
                 v.put(MediaStore.Downloads.DISPLAY_NAME,fn);
