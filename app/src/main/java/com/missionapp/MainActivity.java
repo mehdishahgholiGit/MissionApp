@@ -546,9 +546,9 @@ public class MainActivity extends Activity {
         }
 
         // Sample coordinates in points: section title, column header, detail rows, subtotal.
-        final float top=96f, bottom=465f, titleH=17f, headH=21f, sumH=21f, totalH=22f, signH=60f;
+        final float top=96f, bottom=530f, titleH=17f, headH=21f, sumH=21f, totalH=22f, signH=60f;
         float fixed=4f*(titleH+headH+sumH)+totalH+signH;
-        float rowH=Math.min(21f,Math.max(3.2f,(bottom-top-fixed)/Math.max(1,totalRows)));
+        float rowH=Math.min(24f,Math.max(5f,(bottom-top-fixed)/Math.max(1,totalRows)));
         int[] x={9,180,237,509,586};
         String[] heads={"مبلغ","فاکتور","شرح","تاریخ"};
         float y=top;
