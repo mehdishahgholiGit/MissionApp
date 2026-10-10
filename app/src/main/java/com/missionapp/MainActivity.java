@@ -479,41 +479,92 @@ public class MainActivity extends Activity {
         excelFooter(c,W);
     }
 
+    void expenseCell(Canvas c,String value,float l,float t,float r,float b,boolean header,float fontSize){
+        Paint q=pdfPaint(8,false);
+        q.setStyle(Paint.Style.FILL);
+        q.setColor(header?Color.rgb(224,224,224):Color.WHITE);
+        c.drawRect(l,t,r,b,q);
+        q.setStyle(Paint.Style.STROKE);
+        q.setStrokeWidth(1.0f);
+        q.setColor(Color.BLACK);
+        c.drawRect(l,t,r,b,q);
+        float size=Math.max(5f,Math.min(fontSize,(b-t)*0.62f));
+        android.text.TextPaint tp=new android.text.TextPaint(pdfPaint(size,header));
+        tp.setTextAlign(Paint.Align.CENTER);
+        android.text.StaticLayout sl=new android.text.StaticLayout(
+                value==null?"":value,tp,Math.max(8,(int)(r-l-4)),
+                android.text.Layout.Alignment.ALIGN_CENTER,1.0f,0,false);
+        c.save();
+        c.translate(l+2,t+Math.max(0,(b-t-sl.getHeight())/2f));
+        sl.draw(c);
+        c.restore();
+    }
+
     void drawTripsPage(Canvas c,JSONObject m,int W,int H){
-        int L=44,R=W-44; Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("صورت هزینه های تنخواه گردان",W/2,34,p);
-        Paint q=pdfPaint(9,false);q.setTextAlign(Paint.Align.RIGHT);c.drawText("تاریخ: "+m.optString("end"),R,58,q);
-        String[] cats2={"هزینه های شهر تهران","هزینه های تردد بین شهری","هزینه های تردد درون شهری به غیر از تهران","سایر هزینه ها"};
+        int L=10,R=W-10;
+        Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("صورت هزینه های تنخواه گردان",W/2,28,p);
+        Paint q=pdfPaint(9,false);q.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("تاریخ: "+m.optString("end"),R,49,q);
+        Paint logo=pdfPaint(10,true);logo.setTextAlign(Paint.Align.LEFT);
+        c.drawText("فن آوری آزمایشگاهی",L+8,54,logo);
+        c.drawLine(L,62,R,62,q);
+
+        String[] titles={"هزینه های شهر تهران","هزینه های تردد بین شهری","هزینه های تردد درون شهری به غیر از تهران","سایر هزینه ها"};
         String[] keys={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
-        int y=72;
-        JSONArray ar=m.optJSONArray("expenses");
-        for(int g=0;g<4;g++){
-            Paint h=pdfPaint(10,true);h.setTextAlign(Paint.Align.RIGHT);c.drawText(cats2[g],R,y,h);y+=7;
-            int[] x={L,115,340,410,R};
-            String[] heads={"تاریخ","شرح","فاکتور","مبلغ"};
-            for(int i=0;i<4;i++)excelBox(c,heads[i],x[i],y,x[i+1],y+22,true,true);
-            y+=22;
-            int count=0;
-            if(ar!=null)for(int i=0;i<ar.length()&&count<3;i++){
-                JSONObject o=ar.optJSONObject(i);
-                if(!keys[g].equals(o.optString("category")))continue;
-                excelBox(c,o.optString("date"),x[0],y,x[1],y+22,false,false);
-                String detail=o.optString("desc");if(detail.isEmpty())detail=o.optString("tehranItem");
-                excelBox(c,detail,x[1],y,x[2],y+22,false,false);
-                excelBox(c,o.optString("invoice"),x[2],y,x[3],y+22,false,false);
-                excelBox(c,money(o.optDouble("amount")),x[3],y,x[4],y+22,false,false);
-                y+=22;count++;
+        JSONArray all=m.optJSONArray("expenses");
+        ArrayList<ArrayList<JSONObject>> groups=new ArrayList<>();
+        int totalRows=0;
+        for(int g=0;g<keys.length;g++){
+            ArrayList<JSONObject> rows=new ArrayList<>();
+            if(all!=null)for(int i=0;i<all.length();i++){
+                JSONObject item=all.optJSONObject(i);
+                if(item!=null && keys[g].equals(item.optString("category")))rows.add(item);
             }
-            while(count<2){for(int i=0;i<4;i++)excelBox(c,"",x[i],y,x[i+1],y+22,false,false);y+=22;count++;}
-            double sum=expenseSum(m,keys[g]);
-            excelBox(c,"جمع "+cats2[g],L,y,340,y+23,true,true);
-            excelBox(c,money(sum)+" ریال",340,y,R,y+23,true,true);y+=35;
+            groups.add(rows);
+            totalRows+=Math.max(1,rows.size());
         }
-        excelBox(c,"جمع کل:",L,y,340,y+25,true,true);
-        excelBox(c,money(expenseSum(m,null))+" ریال",340,y,R,y+25,true,true);y+=45;
-        excelLabel(c,"نام و امضا کارشناس",m.optString("person"),L,y,330,y+28);
-        excelLabel(c,"تایید مدیر","",330,y,R,y+28);
-        excelFooter(c,W);
+
+        // Keep the example's compact table for normal lists, but shrink row height
+        // automatically when more expenses are present so every item stays on one A4 page.
+        float top=75f, bottom=770f;
+        float fixed=4f*(15f+21f+21f)+25f+40f;
+        float rowH=Math.min(22f,Math.max(4f,(bottom-top-fixed)/Math.max(1,totalRows)));
+        float titleH=15f, headH=21f, sumH=21f;
+        int[] x={L,210,268,498,R};
+        String[] heads={"مبلغ","فاکتور","شرح","تاریخ"};
+        float y=top;
+        for(int g=0;g<groups.size();g++){
+            Paint h=pdfPaint(9,true);h.setTextAlign(Paint.Align.RIGHT);
+            c.drawText(titles[g],R,y+10,h);
+            y+=titleH;
+            for(int j=0;j<4;j++)expenseCell(c,heads[j],x[j],y,x[j+1],y+headH,true,8);
+            y+=headH;
+            ArrayList<JSONObject> rows=groups.get(g);
+            if(rows.isEmpty()){
+                for(int j=0;j<4;j++)expenseCell(c,"",x[j],y,x[j+1],y+rowH,false,8);
+                y+=rowH;
+            }else{
+                for(JSONObject item:rows){
+                    String detail=item.optString("desc");
+                    if(detail.isEmpty())detail=item.optString("tehranItem");
+                    String[] vals={money(item.optDouble("amount"))+" ریال",item.optString("invoice"),detail,item.optString("date")};
+                    for(int j=0;j<4;j++)expenseCell(c,vals[j],x[j],y,x[j+1],y+rowH,false,8);
+                    y+=rowH;
+                }
+            }
+            expenseCell(c,"جمع "+titles[g],L,y,x[2],y+sumH,true,8);
+            expenseCell(c,money(expenseSum(m,keys[g]))+" ریال",x[2],y,R,y+sumH,true,8);
+            y+=sumH;
+        }
+        expenseCell(c,"جمع کل:",L,y,x[2],y+25,true,9);
+        expenseCell(c,money(expenseSum(m,null))+" ریال",x[2],y,R,y+25,true,9);
+        y+=29;
+        expenseCell(c,"نام و امضا کارشناس: "+m.optString("person"),L,y,330,y+32,false,8);
+        expenseCell(c,"تایید مدیر",330,y,R,y+32,false,8);
+        Paint foot=pdfPaint(7,false);foot.setTextAlign(Paint.Align.CENTER);
+        c.drawText("1D3BB183-E2BB-46DE-BCFD-1FD46B63F371",W/2,815,foot);
+        foot.setTextAlign(Paint.Align.RIGHT);c.drawText(m.optString("end"),W-12,815,foot);
     }
 
     void drawCoverPage(Canvas c,JSONObject m,int W,int H){
