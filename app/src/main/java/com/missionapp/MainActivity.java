@@ -93,7 +93,19 @@ public class MainActivity extends Activity {
     }
 
     Spinner spinner(String[] a){
-        Spinner s=new Spinner(this); s.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,a));
+        Spinner s=new Spinner(this);
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,a){
+            @Override public View getView(int position,View convertView,android.view.ViewGroup parent){
+                TextView v=(TextView)super.getView(position,convertView,parent);
+                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);return v;
+            }
+            @Override public View getDropDownView(int position,View convertView,android.view.ViewGroup parent){
+                TextView v=(TextView)super.getDropDownView(position,convertView,parent);
+                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setPadding(18,14,18,14);return v;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        s.setAdapter(adapter);
         s.setBackground(shape(card,14,border)); s.setPadding(10,0,10,0); s.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         return s;
     }
