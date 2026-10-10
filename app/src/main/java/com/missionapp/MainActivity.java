@@ -501,35 +501,32 @@ public class MainActivity extends Activity {
     }
 
     void drawTripsPage(Canvas c,JSONObject m,int W,int H){
-        // Expense statement layout calibrated against page 2 of M5490.pdf.
-        final float L=9f, R=W-9f;
-        Paint stroke=pdfPaint(1,false);
-        stroke.setStyle(Paint.Style.STROKE); stroke.setStrokeWidth(1.5f); stroke.setColor(Color.BLACK);
+        // Reproduction of page 2 of M5490.pdf: same frame, header, column geometry and totals.
+        final float L=9f, R=W-9f, frameTop=27f, frameBottom=530f;
+        Paint line=pdfPaint(1,false);
+        line.setStyle(Paint.Style.STROKE); line.setStrokeWidth(1.5f); line.setColor(Color.BLACK);
+        c.drawRect(L,frameTop,R,frameBottom,line);
 
-        // The reference has one continuous outer frame, not four independent boxed tables.
-        c.drawRect(L,27,R,530,stroke);
+        // Use the actual company mark cropped from the supplied reference, not a guessed emblem.
+        final String logoPng="${logo64}";
+        byte[] logoBytes=android.util.Base64.decode(logoPng,android.util.Base64.DEFAULT);
+        Bitmap logo=BitmapFactory.decodeByteArray(logoBytes,0,logoBytes.length);
+        if(logo!=null){
+            Paint lp=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+            c.drawBitmap(logo,null,new RectF(42f,28.5f,168f,62.2f),lp);
+            logo.recycle();
+        }
 
-        // Header: company name and emblem on the left, form title on the right.
-        Paint brand=pdfPaint(8.5f,true); brand.setTextAlign(Paint.Align.LEFT);
-        c.drawText("فن آوری آزمایشگاهی",48,54,brand);
-        // Monochrome emblem approximation in the same footprint as the printed logo.
-        Paint emblem=pdfPaint(1,false); emblem.setStyle(Paint.Style.STROKE); emblem.setStrokeWidth(2f);
-        c.drawCircle(153,47,12,emblem);
-        c.drawArc(145,39,161,55,200,140,false,emblem);
-        c.drawLine(145,48,161,48,emblem);
-        c.drawLine(153,40,153,54,emblem);
-
-        Paint title=pdfPaint(8.5f,true); title.setTextAlign(Paint.Align.RIGHT);
+        Paint title=pdfPaint(8.2f,true); title.setTextAlign(Paint.Align.RIGHT);
         c.drawText("صورت هزینه های تنخواه",R-6,48,title);
         c.drawText("گردان",R-6,59,title);
 
-        // Date field and header separator match the reference positions.
-        c.drawRect(L,63,176,83,stroke);
+        c.drawRect(L,63,176,83,line);
         Paint date=pdfPaint(10,false); date.setTextAlign(Paint.Align.CENTER);
         c.drawText(m.optString("end"),92.5f,76.5f,date);
         Paint dateLabel=pdfPaint(8.5f,false); dateLabel.setTextAlign(Paint.Align.LEFT);
         c.drawText("تاریخ:",193,76.5f,dateLabel);
-        c.drawLine(L,84,R,84,stroke);
+        c.drawLine(L,84,R,84,line);
 
         String[] titles={"هزینه های شهر تهران","هزینه های تردد بین شهری","هزینه های تردد درون شهری به غیر از تهران","سایر هزینه ها"};
         String[] keys={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
@@ -542,64 +539,64 @@ public class MainActivity extends Activity {
                 JSONObject item=all.optJSONObject(i);
                 if(item!=null && keys[g].equals(item.optString("category"))) rows.add(item);
             }
-            groups.add(rows); totalRows+=Math.max(1,rows.size());
+            groups.add(rows);
+            totalRows+=Math.max(1,rows.size());
         }
 
-        // Sample coordinates in points: section title, column header, detail rows, subtotal.
-        final float top=96f, bottom=530f, titleH=17f, headH=21f, sumH=21f, totalH=22f, signH=60f;
+        final float top=88f, bottom=frameBottom, titleH=17f, headH=21f, sumH=21f, totalH=22f, signH=60f;
         float fixed=4f*(titleH+headH+sumH)+totalH+signH;
-        float rowH=Math.min(24f,Math.max(5f,(bottom-top-fixed)/Math.max(1,totalRows)));
-        int[] x={9,180,237,509,586};
+        float rowH=Math.max(1f,Math.min(24f,(bottom-top-fixed)/Math.max(1,totalRows)));
+        // Column positions are measured from the reference image, left to right:
+        // amount | invoice | description | date.
+        float[] x={9f,176f,232f,496f,586f};
         String[] heads={"مبلغ","فاکتور","شرح","تاریخ"};
         float y=top;
         for(int g=0;g<groups.size();g++){
             Paint section=pdfPaint(8.1f,true); section.setTextAlign(Paint.Align.CENTER);
-            c.drawText(titles[g],(L+R)/2,y+11,section);
+            c.drawText(titles[g],(L+R)/2f,y+11f,section);
             y+=titleH;
-            // Reference header rows are white; do not shade them gray.
             for(int j=0;j<4;j++) expenseCell(c,heads[j],x[j],y,x[j+1],y+headH,false,8.4f);
             y+=headH;
             ArrayList<JSONObject> rows=groups.get(g);
             if(rows.isEmpty()){
-                for(int j=0;j<4;j++) expenseCell(c,"",x[j],y,x[j+1],y+rowH,false,8);
+                for(int j=0;j<4;j++) expenseCell(c,"",x[j],y,x[j+1],y+rowH,false,8f);
                 y+=rowH;
             }else{
                 for(JSONObject item:rows){
                     String detail=item.optString("desc");
                     if(detail.isEmpty()) detail=item.optString("tehranItem");
-                    String[] vals={money(item.optDouble("amount"))+" ریال",item.optString("invoice"),detail,item.optString("date")};
-                    for(int j=0;j<4;j++) expenseCell(c,vals[j],x[j],y,x[j+1],y+rowH,false,Math.max(3.2f,Math.min(8.5f,rowH*0.44f)));
+                    String[] vals={moneyInt(item.optDouble("amount"))+" ریال",item.optString("invoice"),detail,item.optString("date")};
+                    for(int j=0;j<4;j++) expenseCell(c,vals[j],x[j],y,x[j+1],y+rowH,false,Math.min(8.5f,rowH*0.44f));
                     y+=rowH;
                 }
             }
-            // Subtotal uses one merged description area and the amount at the left.
-            expenseCell(c,money(expenseSum(m,keys[g]))+" ریال",x[0],y,x[1],y+sumH,false,8.3f);
+            expenseCell(c,moneyInt(expenseSum(m,keys[g]))+" ریال",x[0],y,x[1],y+sumH,false,8.3f);
             expenseCell(c,"جمع "+titles[g],x[1],y,x[3],y+sumH,false,8.1f);
-            expenseCell(c,"",x[3],y,R,y+sumH,false,8);
+            expenseCell(c,"",x[3],y,R,y+sumH,false,8f);
             y+=sumH;
         }
 
-        // Grand total band and signature row are anchored near the bottom of the outer frame.
         Paint dark=pdfPaint(8.5f,true); dark.setColor(Color.BLACK); dark.setStyle(Paint.Style.FILL);
         c.drawRect(L,y,R,y+totalH,dark);
         Paint white=pdfPaint(8.5f,true); white.setColor(Color.WHITE); white.setTextAlign(Paint.Align.LEFT);
-        c.drawText(money(expenseSum(m,null))+" ریال",L+47,y+14.5f,white);
+        c.drawText(moneyInt(expenseSum(m,null))+" ریال",L+47,y+14.5f,white);
         white.setTextAlign(Paint.Align.RIGHT); c.drawText("جمع کل:",R-8,y+14.5f,white);
         y+=totalH;
+
+        // Keep the signature area empty for the user to sign later.
         Paint sig=pdfPaint(8,false); sig.setColor(Color.WHITE); sig.setStyle(Paint.Style.FILL);
         c.drawRect(L,y,R,y+signH,sig);
         sig.setStyle(Paint.Style.STROKE); sig.setStrokeWidth(1.5f); sig.setColor(Color.BLACK);
-        c.drawRect(L,y,R,y+signH,sig); c.drawLine(237,y,237,y+signH,sig);
+        c.drawRect(L,y,R,y+signH,sig); c.drawLine(232f,y,232f,y+signH,sig);
         Paint st=pdfPaint(8,false); st.setTextAlign(Paint.Align.CENTER);
-        c.drawText("تایید مدیر",123,y+31,st);
+        c.drawText("تایید مدیر",120f,y+30f,st);
         st.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("نام و امضا کارشناس:  "+m.optString("person"),R-8,y+30,st);
+        c.drawText("نام و امضا کارشناس:  "+m.optString("person"),R-8,y+30f,st);
 
         Paint foot=pdfPaint(7,false); foot.setTextAlign(Paint.Align.CENTER);
-        c.drawText("1D3BB183-E2BB-46DE-BCFD-1FD46B63F371",W/2,542,foot);
-        foot.setTextAlign(Paint.Align.RIGHT); c.drawText(m.optString("end"),W-12,542,foot);
+        c.drawText("1D3BB183-E2BB-46DE-BCFD-1FD46B63F371",W/2f,542f,foot);
+        foot.setTextAlign(Paint.Align.RIGHT); c.drawText(m.optString("end"),W-12f,542f,foot);
     }
-
     void drawCoverPage(Canvas c,JSONObject m,int W,int H){
         int L=36,R=W-36;Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
         c.drawText("شرکت فن آوری آزمایشگاهی (با مسئولیت محدود)",W/2,28,p);
