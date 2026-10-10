@@ -501,14 +501,33 @@ public class MainActivity extends Activity {
     }
 
     void drawTripsPage(Canvas c,JSONObject m,int W,int H){
-        int L=10,R=W-10;
-        Paint p=pdfPaint(14,true);p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("صورت هزینه های تنخواه گردان",W/2,28,p);
-        Paint q=pdfPaint(9,false);q.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("تاریخ: "+m.optString("end"),R,49,q);
-        Paint logo=pdfPaint(10,true);logo.setTextAlign(Paint.Align.LEFT);
-        c.drawText("فن آوری آزمایشگاهی",L+8,54,logo);
-        c.drawLine(L,62,R,62,q);
+        // Rebuild the expense statement to follow the supplied M5490 form:
+        // framed header, date box, four category tables, dark grand total and signature area.
+        final int L=10, R=W-10;
+        Paint line=pdfPaint(1,false);
+        line.setStyle(Paint.Style.STROKE);
+        line.setStrokeWidth(1.25f);
+        line.setColor(Color.BLACK);
+        c.drawRect(L,18,R,515,line);
+
+        Paint title=pdfPaint(10,true); title.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("صورت هزینه های تنخواه",R-8,48,title);
+        c.drawText("گردان",R-8,61,title);
+
+        Paint logo=pdfPaint(9,true); logo.setTextAlign(Paint.Align.LEFT);
+        c.drawText("فن آوری آزمایشگاهی",48,58,logo);
+        // Logo mark placeholder stays within the company header area.
+        Paint mark=pdfPaint(9,true); mark.setStyle(Paint.Style.STROKE); mark.setStrokeWidth(1.2f);
+        c.drawCircle(153,53,10,mark);
+        c.drawLine(146,53,160,53,mark);
+        c.drawLine(153,46,153,60,mark);
+
+        Paint date=pdfPaint(10,false); date.setTextAlign(Paint.Align.CENTER);
+        c.drawRect(L,62,176,83,line);
+        c.drawText(m.optString("end"),93,76,date);
+        Paint dateLabel=pdfPaint(9,false); dateLabel.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("تاریخ:",214,76,dateLabel);
+        c.drawLine(L,84,R,84,line);
 
         String[] titles={"هزینه های شهر تهران","هزینه های تردد بین شهری","هزینه های تردد درون شهری به غیر از تهران","سایر هزینه ها"};
         String[] keys={"هزینه شهر تهران","هزینه تردد بین شهری","هزینه تردد درون شهری","سایر هزینه ها"};
@@ -525,20 +544,18 @@ public class MainActivity extends Activity {
             totalRows+=Math.max(1,rows.size());
         }
 
-        // Keep the example's compact table for normal lists, but shrink row height
-        // automatically when more expenses are present so every item stays on one A4 page.
-        float top=75f, bottom=770f;
-        float fixed=4f*(15f+21f+21f)+25f+40f;
-        float rowH=Math.min(22f,Math.max(4f,(bottom-top-fixed)/Math.max(1,totalRows)));
-        float titleH=15f, headH=21f, sumH=21f;
-        int[] x={L,210,268,498,R};
+        final float tableTop=88f, bottom=514f;
+        final float titleH=16f, headH=20f, sumH=20f, grandH=22f, signH=58f;
+        float fixed=4f*(titleH+headH+sumH)+grandH+signH;
+        float rowH=Math.min(21f,Math.max(3.5f,(bottom-tableTop-fixed)/Math.max(1,totalRows)));
+        int[] x={L,176,232,496,R};
         String[] heads={"مبلغ","فاکتور","شرح","تاریخ"};
-        float y=top;
+        float y=tableTop;
         for(int g=0;g<groups.size();g++){
-            Paint h=pdfPaint(9,true);h.setTextAlign(Paint.Align.RIGHT);
-            c.drawText(titles[g],R,y+10,h);
+            Paint section=pdfPaint(8.5f,true); section.setTextAlign(Paint.Align.RIGHT);
+            c.drawText(titles[g],R-4,y+11,section);
             y+=titleH;
-            for(int j=0;j<4;j++)expenseCell(c,heads[j],x[j],y,x[j+1],y+headH,true,8);
+            for(int j=0;j<4;j++)expenseCell(c,heads[j],x[j],y,x[j+1],y+headH,false,8.5f);
             y+=headH;
             ArrayList<JSONObject> rows=groups.get(g);
             if(rows.isEmpty()){
@@ -549,22 +566,38 @@ public class MainActivity extends Activity {
                     String detail=item.optString("desc");
                     if(detail.isEmpty())detail=item.optString("tehranItem");
                     String[] vals={money(item.optDouble("amount"))+" ریال",item.optString("invoice"),detail,item.optString("date")};
-                    for(int j=0;j<4;j++)expenseCell(c,vals[j],x[j],y,x[j+1],y+rowH,false,8);
+                    for(int j=0;j<4;j++)expenseCell(c,vals[j],x[j],y,x[j+1],y+rowH,false,Math.min(8.5f,rowH*0.42f));
                     y+=rowH;
                 }
             }
-            expenseCell(c,"جمع "+titles[g],L,y,x[2],y+sumH,true,8);
-            expenseCell(c,money(expenseSum(m,keys[g]))+" ریال",x[2],y,R,y+sumH,true,8);
+            expenseCell(c,money(expenseSum(m,keys[g]))+" ریال",x[0],y,x[1],y+sumH,false,8.5f);
+            expenseCell(c,"جمع "+titles[g],x[1],y,x[3],y+sumH,false,8.5f);
+            expenseCell(c,"",x[3],y,R,y+sumH,false,8);
             y+=sumH;
         }
-        expenseCell(c,"جمع کل:",L,y,x[2],y+25,true,9);
-        expenseCell(c,money(expenseSum(m,null))+" ریال",x[2],y,R,y+25,true,9);
-        y+=29;
-        expenseCell(c,"نام و امضا کارشناس: "+m.optString("person"),L,y,330,y+32,false,8);
-        expenseCell(c,"تایید مدیر",330,y,R,y+32,false,8);
-        Paint foot=pdfPaint(7,false);foot.setTextAlign(Paint.Align.CENTER);
-        c.drawText("1D3BB183-E2BB-46DE-BCFD-1FD46B63F371",W/2,815,foot);
-        foot.setTextAlign(Paint.Align.RIGHT);c.drawText(m.optString("end"),W-12,815,foot);
+
+        // Grand total is the only dark band, as in the reference document.
+        Paint dark=pdfPaint(8.5f,true); dark.setColor(Color.rgb(22,22,22)); dark.setStyle(Paint.Style.FILL);
+        c.drawRect(L,y,R,y+grandH,dark);
+        Paint white=pdfPaint(8.5f,true); white.setColor(Color.WHITE); white.setTextAlign(Paint.Align.LEFT);
+        c.drawText(money(expenseSum(m,null))+" ریال",L+8,y+14.5f,white);
+        white.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("جمع کل:",R-8,y+14.5f,white);
+        y+=grandH;
+
+        // Two signature/approval cells; keep them inside the same A4 page.
+        Paint sig=pdfPaint(8,false); sig.setColor(Color.WHITE); sig.setStyle(Paint.Style.FILL);
+        c.drawRect(L,y,R,y+signH,sig);
+        sig.setStyle(Paint.Style.STROKE); sig.setStrokeWidth(1.2f); sig.setColor(Color.BLACK);
+        c.drawRect(L,y,R,y+signH,sig); c.drawLine(232,y,232,y+signH,sig);
+        Paint st=pdfPaint(8,false); st.setTextAlign(Paint.Align.CENTER);
+        c.drawText("تایید مدیر",121,y+31,st);
+        st.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("نام و امضا کارشناس:  "+m.optString("person"),R-8,y+30,st);
+
+        Paint foot=pdfPaint(7,false); foot.setTextAlign(Paint.Align.CENTER);
+        c.drawText("1D3BB183-E2BB-46DE-BCFD-1FD46B63F371",W/2,530,foot);
+        foot.setTextAlign(Paint.Align.RIGHT); c.drawText(m.optString("end"),W-12,530,foot);
     }
 
     void drawCoverPage(Canvas c,JSONObject m,int W,int H){
