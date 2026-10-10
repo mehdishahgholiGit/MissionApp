@@ -18,13 +18,15 @@ public class WizardActivity extends MainActivity {
     LinearLayout contentBox;
     int step=1;
 
-    TextView stepTitle, stepHint;
+    TextView stepTitle, stepHint, progressLabel;
     Button nextBtn, backBtn, homeBtn;
     LinearLayout expenseList;
     TextView expenseSum;
 
     public void edit(){
+        // Recreate every input when opening another mission; never reuse detached views.
         step=1;
+        form=null;
         buildWizard();
     }
 
@@ -37,16 +39,16 @@ public class WizardActivity extends MainActivity {
             getWindow().setDecorFitsSystemWindows(true);
         }
         base(cur.length()==0?"مأموریت جدید":"ویرایش مأموریت");
-        TextView progress=tv("مرحله "+step+" از ۴",14);
-        progress.setTextColor(primary);
-        progress.setGravity(Gravity.CENTER);
-        box.addView(progress,new LinearLayout.LayoutParams(-1,40));
+        progressLabel=tv("مرحله ۱ از ۴",16);
+        progressLabel.setTextColor(primary);
+        progressLabel.setGravity(Gravity.CENTER);
+        box.addView(progressLabel,new LinearLayout.LayoutParams(-1,48));
 
-        stepTitle=tv("",20); stepTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        stepTitle=tv("",23); stepTitle.setTypeface(Typeface.create("tahoma",Typeface.NORMAL),Typeface.BOLD);
         stepTitle.setTextColor(primaryDark); stepTitle.setGravity(Gravity.CENTER);
         box.addView(stepTitle,new LinearLayout.LayoutParams(-1,52));
 
-        stepHint=tv("",13); stepHint.setTextColor(muted); stepHint.setGravity(Gravity.CENTER);
+        stepHint=tv("",16); stepHint.setTextColor(muted); stepHint.setGravity(Gravity.CENTER);
         box.addView(stepHint,new LinearLayout.LayoutParams(-1,44));
 
         contentBox=new LinearLayout(this); contentBox.setOrientation(LinearLayout.VERTICAL);
@@ -68,17 +70,17 @@ public class WizardActivity extends MainActivity {
         for(Button b : new Button[]{nextBtn,backBtn,homeBtn}){
             b.setMinWidth(0);
             b.setMinimumWidth(0);
-            b.setMinHeight(48);
-            b.setMinimumHeight(48);
-            b.setPadding(2,2,2,2);
-            b.setTextSize(13);
+            b.setMinHeight(58);
+            b.setMinimumHeight(58);
+            b.setPadding(4,2,4,2);
+            b.setTextSize(17);
         }
         nextBtn.setText("ادامه");
         backBtn.setText("قبلی");
         homeBtn.setText("⌂ خانه");
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,52,1f));
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,52,1f));
-        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,52,1f));
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,60,1f));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,60,1f));
+        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,60,1f));
         box.addView(nav);
         renderStep();
 
@@ -103,7 +105,7 @@ public class WizardActivity extends MainActivity {
         nav.setElevation(8);
         page.setFocusableInTouchMode(true);
         nav.setFocusable(false);
-        LinearLayout.LayoutParams navParams=new LinearLayout.LayoutParams(-1,56);
+        LinearLayout.LayoutParams navParams=new LinearLayout.LayoutParams(-1,64);
         navParams.topMargin=6;
         page.addView(nav,navParams);
         // Keep navigation as a sibling of the scroll view so it stays at the bottom.
@@ -135,7 +137,7 @@ public class WizardActivity extends MainActivity {
         cbp.setSelection(index(payers,payer(cur,"cancelBackPayer")));
         attachDatePicker(start); attachDatePicker(end);
         attachTimePicker(startTime); attachTimePicker(endTime);
-        suburb=new CheckBox(this); suburb.setText("مأموریت حومه تهران"); suburb.setTextColor(text); suburb.setTextSize(15); suburb.setChecked(cur.optBoolean("suburb",false));
+        suburb=new CheckBox(this); suburb.setText("مأموریت حومه تهران"); suburb.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); suburb.setTextColor(text); suburb.setTextSize(18); suburb.setChecked(cur.optBoolean("suburb",false));
     }
 
 
@@ -157,6 +159,7 @@ public class WizardActivity extends MainActivity {
 
     void renderStep(){
         contentBox.removeAllViews();
+        progressLabel.setText(new String[]{"","مرحله ۱ از ۴","مرحله ۲ از ۴","مرحله ۳ از ۴","مرحله ۴ از ۴"}[step]);
         stepTitle.setText(new String[]{"","۱. اطلاعات مأموریت","۲. زمان و نوع مأموریت","۳. هزینه‌ها","۴. بررسی نهایی"}[step]);
         stepHint.setText(new String[]{"","فقط اطلاعات پایه را وارد کنید","تاریخ و مدت مأموریت را مشخص کنید","فقط هزینه‌هایی را که واقعاً پرداخت کرده‌اید وارد کنید","قبل از ثبت، همه چیز را یک‌جا بررسی کنید"}[step]);
         if(form==null) makeFields();
@@ -209,6 +212,7 @@ public class WizardActivity extends MainActivity {
         if(step==4) { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(15); }
         else { nextBtn.setBackground(shape(primary,14,Color.TRANSPARENT)); nextBtn.setTextColor(palette(R.color.navy)); nextBtn.setTextSize(16); }
         stepTitle.invalidate();
+        progressLabel.invalidate();
         // Start each step at the top while keeping the navigation bar reachable.
         if(scrollRoot!=null) scrollRoot.post(()->scrollRoot.scrollTo(0,0));
     }
@@ -264,7 +268,14 @@ public class WizardActivity extends MainActivity {
         try{
             sync();
             validate7(end.getText().toString());
-            if(!data.contains(cur))data.add(cur);
+            String formNo=cur.optString("form","").trim();
+            if(formNo.isEmpty()){toast("شماره فرم را وارد کنید تا مأموریت با همان شماره ذخیره شود");return;}
+            int existing=-1;
+            for(int i=0;i<data.size();i++){
+                if(data.get(i)!=cur && formNo.equals(data.get(i).optString("form","").trim())){existing=i;break;}
+            }
+            if(existing>=0)data.set(existing,cur);
+            else if(!data.contains(cur))data.add(cur);
             save();
             new AlertDialog.Builder(this).setTitle("مأموریت ثبت شد").setMessage("اطلاعات با موفقیت ذخیره شد. آیا می‌خواهید همین حالا PDF را دریافت یا ارسال کنید؟").setNegativeButton("بعداً", (d,which)->home()).setPositiveButton("دریافت PDF", (d,which)->pdf(cur)).show();
         }catch(Exception e){toast(e.getMessage());}
