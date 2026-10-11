@@ -365,9 +365,10 @@ public class MainActivity extends Activity {
     int days360(int sy,int sm,int sd,int ey,int em,int ed){if(sd==31)sd=30;if(ed==31&&(sd==30||sd==31))ed=30;return 360*(ey-sy)+30*(em-sm)+(ed-sd);}
     void validate7(String end){if(end==null||end.trim().isEmpty())return;try{String[] p=end.trim().replace("-","/").split("/");if(p.length!=3)return;int y=Integer.parseInt(p[0]),mo=Integer.parseInt(p[1]),da=Integer.parseInt(p[2]);int[] now=gregorianToJalali(Calendar.getInstance().get(Calendar.YEAR),Calendar.getInstance().get(Calendar.MONTH)+1,Calendar.getInstance().get(Calendar.DAY_OF_MONTH));int d;if(y>=1200&&y<1700)d=days360(y,mo,da,now[0],now[1],now[2]);else{Calendar e=Calendar.getInstance();e.setLenient(false);e.set(y,mo-1,da,0,0,0);e.getTime();Calendar n=Calendar.getInstance();n.set(Calendar.HOUR_OF_DAY,0);n.set(Calendar.MINUTE,0);n.set(Calendar.SECOND,0);n.set(Calendar.MILLISECOND,0);d=(int)((n.getTimeInMillis()-e.getTimeInMillis())/86400000L);}if(d>7)throw new IllegalArgumentException("بیشتر از ۷ روز از مأموریت گذشته و هزینه‌ها طبق Excel قابل پرداخت نیست");}catch(NumberFormatException x){}catch(IllegalArgumentException x){if(x.getMessage()!=null&&x.getMessage().contains("بیشتر از"))throw x;}}
 
+    boolean missionCanvasScaled=false;
     Paint pdfPaint(float size,boolean bold){
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(Color.BLACK); p.setTextSize(size);
+        p.setColor(Color.BLACK); p.setTextSize(missionCanvasScaled?size/1.4f:size);
         if(bold)p.setTypeface(Typeface.DEFAULT_BOLD);
         return p;
     }
@@ -425,6 +426,12 @@ public class MainActivity extends Activity {
     }
 
     void drawPaymentsPage(Canvas c,JSONObject m,int W,int H){
+        // Map the compact drawing coordinates to the full-height original worksheet area.
+        // Text sizes are compensated in pdfPaint so only layout positions expand.
+        c.save();
+        c.scale(1f,1.4f);
+        c.translate(0f,-27f);
+        missionCanvasScaled=true;
         // Layout follows the original Payments worksheet in "فرم هزینه ماموریت.xlsm".
         final float L=44f, R=551f, WID=R-L;
         Paint line=pdfPaint(1,false); line.setColor(Color.BLACK); line.setStrokeWidth(1.25f); line.setStyle(Paint.Style.STROKE);
@@ -513,6 +520,8 @@ public class MainActivity extends Activity {
         c.drawLine(L,569,R,569,line);
         missionValueCell(c,"نام و نام خانوادگی",m.optString("person"),L,569,L+WID/2,581,0.47f,true);
         missionValueCell(c,"تاریخ",m.optString("end"),L+WID/2,569,R,581,0.42f,true);
+        c.restore();
+        missionCanvasScaled=false;
         excelFooter(c,W);
     }
 
