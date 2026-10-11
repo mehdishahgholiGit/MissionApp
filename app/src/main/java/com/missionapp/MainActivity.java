@@ -425,89 +425,114 @@ public class MainActivity extends Activity {
     }
 
     void drawPaymentsPage(Canvas c,JSONObject m,int W,int H){
-        // Page 1 follows the supplied M5490 mission-expense form: compact header,
-        // outlined information blocks, unshaded fields, and aligned travel sections.
-        final float L=36f, R=559f, MID=297f;
-        Paint border=pdfPaint(1,false);
-        border.setColor(Color.BLACK); border.setStrokeWidth(1.25f); border.setStyle(Paint.Style.STROKE);
-        Paint fill=pdfPaint(1,false); fill.setStyle(Paint.Style.FILL); fill.setColor(Color.WHITE);
-        Paint title=pdfPaint(8,true); title.setTextAlign(Paint.Align.CENTER);
-        c.drawText("فرم هزینه ماموریت",160,55,title);
-        Paint code=pdfPaint(7,false); code.setTextAlign(Paint.Align.LEFT);
-        c.drawText("75F0203-B",L,61,code);
-        // Header right side: company name/logo area; left side keeps the form identifier.
-        Paint company=pdfPaint(12,true); company.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("فن آوری آزمایشگاهی",R-8,65,company);
-        Paint small=pdfPaint(7,false); small.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("شماره فرم مأموریت: "+m.optString("form"),R-8,80,small);
-        c.drawText("شماره سرویس: "+m.optString("service"),R-8,95,small);
-        c.drawText("تاریخ: "+m.optString("start"),R-8,110,small);
-        // Main information block, two balanced halves, right-to-left labels.
-        c.drawRect(L,116,R,174,border);
-        c.drawLine(MID,116,MID,174,border);
-        c.drawLine(L,135,R,135,border); c.drawLine(L,154,R,154,border);
-        drawMissionField(c,"بخش","خدمات پس از فروش، زیمنس آزمایشگاهی",MID,116,R,135);
-        drawMissionField(c,"کمپانی","SIEMENS",MID,135,R,154);
-        drawMissionField(c,"دستگاه",m.optString("device"),MID,154,R,174);
-        drawMissionField(c,"شماره سرویس",m.optString("service"),L,116,MID,135);
-        drawMissionField(c,"نام کارشناس",m.optString("person"),L,135,MID,154);
-        drawMissionField(c,"موضوع",m.optString("subject"),L,154,MID,174);
-        // Destination and date range form the bottom line of the information area.
-        c.drawRect(L,174,R,193,border);
-        drawMissionField(c,"مقصد",m.optString("destination"),L,174,R,193);
+        // Layout follows the original Payments worksheet in "فرم هزینه ماموریت.xlsm".
+        final float L=44f, R=551f, WID=R-L;
+        Paint line=pdfPaint(1,false); line.setColor(Color.BLACK); line.setStrokeWidth(1.25f); line.setStyle(Paint.Style.STROKE);
+        Paint grey=pdfPaint(1,false); grey.setStyle(Paint.Style.FILL); grey.setColor(Color.rgb(220,220,220));
+        Paint white=pdfPaint(1,false); white.setStyle(Paint.Style.FILL); white.setColor(Color.WHITE);
+        Paint small=pdfPaint(7.2f,false); small.setColor(Color.BLACK);
+        Paint bold=pdfPaint(8.2f,true); bold.setColor(Color.BLACK);
+        // Header and form identification.
+        Paint p=pdfPaint(8f,false); p.setTextAlign(Paint.Align.CENTER);
+        c.drawText("فرم هزینه ماموریت",172,57,p);
+        p.setTextAlign(Paint.Align.LEFT); c.drawText("75F0203-B",118,45,p);
+        Paint company=pdfPaint(12f,true); company.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("فن آوری آزمایشگاهی",R-8,66,company);
+        Paint star=pdfPaint(27f,true); star.setTextAlign(Paint.Align.CENTER); c.drawText("*M*",W/2f,84,star);
+        c.drawLine(L,91,R,91,line);
+        // Original warning/form-number row.
+        c.drawRect(L,94,210,125,line); c.drawRect(210,94,R,125,line);
+        c.drawRect(L+1,95,209,124,grey);
+        drawMissionField(c,"به فیلدهایی که قرمز میشوند توجه کنید.","",L+2,95,209,124);
+        drawMissionField(c,"شماره فرم",m.optString("form"),R-155,95,R,125);
+        // Mission information table. Values are kept in separate shaded cells.
+        float y=138f, rh=18.5f, split=L+220;
+        c.drawRect(L,y,R,y+4*rh,line);
+        c.drawLine(split,y,split,y+4*rh,line);
+        for(int i=1;i<4;i++) c.drawLine(L,y+i*rh,R,y+i*rh,line);
+        missionValueCell(c,"شماره سرویس",m.optString("service"),L,y,split,y+rh,0.56f,true);
+        missionValueCell(c,"تاریخ",m.optString("start")+"   الی   "+m.optString("end"),L,y+rh,split,y+2*rh,0.56f,true);
+        missionValueCell(c,"نام کارشناس",m.optString("person"),L,y+2*rh,split,y+3*rh,0.56f,true);
+        missionValueCell(c,"موضوع",m.optString("subject"),L,y+3*rh,split,y+4*rh,0.56f,true);
+        missionValueCell(c,"بخش","خدمات پس از فروش، زیمنس آزمایشگاهی",split,y,R,y+rh,0.27f,true);
+        missionValueCell(c,"کمپانی","SIEMENS",split,y+rh,R,y+2*rh,0.27f,true);
+        missionValueCell(c,"دستگاه",m.optString("device"),split,y+2*rh,R,y+3*rh,0.27f,true);
+        missionValueCell(c,"مقصد",m.optString("destination"),split,y+3*rh,R,y+4*rh,0.27f,true);
         // Travel status and ticket costs.
-        excelSection(c,"وضعیت سفر",L,204,R);
-        c.drawRect(L,210,R,279,border);
-        c.drawLine(355,210,355,279,border);
-        c.drawLine(L,227,355,227,border); c.drawLine(L,244,355,244,border);
-        c.drawLine(L,261,355,261,border);
-        drawMissionField(c,"هزینه تردد بین شهری",moneyInt(expenseSum(m,"هزینه تردد بین شهری"))+" ریال",L,210,355,227);
-        drawMissionField(c,"هزینه بلیط رفت",moneyInt(m.optDouble("ticketGo"))+" ریال",L,227,355,244);
-        drawMissionField(c,"هزینه بلیط برگشت",moneyInt(m.optDouble("ticketBack"))+" ریال",L,244,355,261);
-        drawMissionField(c,"هزینه کنسلی رفت",moneyInt(m.optDouble("cancelGo"))+" ریال",L,261,355,279);
-        drawMissionField(c,"هزینه کنسلی برگشت",moneyInt(m.optDouble("cancelBack"))+" ریال",355,227,R,244);
-        drawMissionField(c,"شماره بلیط رفت",m.optString("goNo"),355,244,R,261);
-        drawMissionField(c,"شماره بلیط برگشت",m.optString("backNo"),355,261,R,279);
-        excelCheckbox(c,"زمینی",R-75,226,m.optBoolean("ground",false));
-        excelCheckbox(c,"هوایی",R-75,246,m.optBoolean("air",false));
-        excelCheckbox(c,"کنسلی",R-75,266,m.optBoolean("cancel",false));
-        // Travel schedule: fixed-height cells, dates and times never overlap.
-        excelSection(c,"زمان بندی سفر",L,294,R);
-        c.drawRect(L,300,R,340,border); c.drawLine(MID,300,MID,340,border); c.drawLine(L,320,R,320,border);
-        drawMissionField(c,"تاریخ شروع",m.optString("start"),L,300,MID,320);
-        drawMissionField(c,"تاریخ برگشت",m.optString("end"),MID,300,R,320);
-        drawMissionField(c,"زمان شروع",m.optString("startTime"),L,320,MID,340);
-        drawMissionField(c,"زمان اتمام",m.optString("endTime"),MID,320,R,340);
-        // Trip costs and total.
-        excelSection(c,"هزینه سفر",L,355,R);
-        c.drawRect(L,361,R,418,border); c.drawLine(MID,361,MID,418,border);
-        c.drawLine(L,380,R,380,border); c.drawLine(L,399,R,399,border);
-        drawMissionField(c,"هتل",moneyInt(m.optDouble("hotel"))+" ریال / "+payer(m,"hotelPayer"),L,361,MID,380);
-        drawMissionField(c,"تردد",moneyInt(expenseSum(m,"هزینه تردد درون شهری")+expenseSum(m,"هزینه تردد بین شهری"))+" ریال",MID,361,R,380);
-        drawMissionField(c,"حقوق روزانه",moneyInt(missionPay(m))+" ریال",L,380,MID,399);
-        drawMissionField(c,"متفرقه",moneyInt(expenseSum(m,"سایر هزینه ها"))+" ریال",MID,380,R,399);
-        drawMissionField(c,"تعداد روزهای مأموریت",String.valueOf(m.optDouble("days",1)),L,399,MID,418);
-        drawMissionField(c,"تعداد روزهای تعطیل",String.valueOf(m.optDouble("holiday",0)),MID,399,R,418);
-        c.drawRect(L,418,R,438,border);
-        Paint total=pdfPaint(9,true); total.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("جمع کل:  "+moneyInt(total(m))+" ریال",R-8,431,total);
-        // Signature and payment blocks stay blank for handwritten signatures.
-        excelSection(c,"امضاء کارشناس / تأیید مدیر گروه",L,449,R);
-        c.drawRect(L,455,R,493,border);
-        c.drawText("پرداخت هزینه فوق بلا مانع است.",R-8,469,small);
-        c.drawLine(L,478,R,478,border);
-        c.drawText("امضاء:",R-8,489,small);
-        excelSection(c,"پرداخت",L,508,R);
-        c.drawRect(L,514,R,566,border);
-        c.drawText("مبلغ "+moneyInt(total(m))+" ریال بابت حق علی‌الحساب مأموریت فوق به اینجانب پرداخت گردید.",R-8,528,small);
-        c.drawLine(L,536,R,536,border);
-        drawMissionField(c,"نام و نام خانوادگی",m.optString("person"),L,536,MID,551);
-        drawMissionField(c,"تاریخ",m.optString("end"),MID,536,R,551);
-        c.drawText("مبلغ "+moneyInt(total(m))+" ریال بابت تسویه مأموریت فوق به اینجانب پرداخت گردید.",R-8,562,small);
-        c.drawLine(L,566,R,566,border);
-        drawMissionField(c,"نام و نام خانوادگی",m.optString("person"),L,566,MID,581);
-        drawMissionField(c,"تاریخ",m.optString("end"),MID,566,R,581);
+        excelSection(c,"وضعیت سفر",L,222,R);
+        float t=228f, row=19f, leftEnd=L+300f, mid=L+365f;
+        c.drawRect(L,t,R,t+4*row,line);
+        c.drawLine(leftEnd,t,leftEnd,t+4*row,line);
+        c.drawLine(mid,t,mid,t+4*row,line);
+        for(int i=1;i<4;i++) c.drawLine(L,t+i*row,R,t+i*row,line);
+        missionValueCell(c,"هزینه تردد بین شهری",moneyInt(expenseSum(m,"هزینه تردد بین شهری"))+" ریال",L,t,leftEnd,t+row,0.57f,true);
+        missionValueCell(c,"هزینه بلیط رفت",moneyInt(m.optDouble("ticketGo"))+" ریال",L,t+row,leftEnd,t+2*row,0.57f,true);
+        missionValueCell(c,"هزینه بلیط برگشت",moneyInt(m.optDouble("ticketBack"))+" ریال",L,t+2*row,leftEnd,t+3*row,0.57f,true);
+        missionValueCell(c,"هزینه کنسلی رفت",moneyInt(m.optDouble("cancelGo"))+" ریال",L,t+3*row,leftEnd,t+4*row,0.57f,true);
+        missionValueCell(c,"شماره بلیط رفت",m.optString("goNo"),leftEnd,t+row,mid,t+2*row,0.55f,true);
+        missionValueCell(c,"شماره بلیط برگشت",m.optString("backNo"),leftEnd,t+2*row,mid,t+3*row,0.55f,true);
+        missionValueCell(c,"کنسلی برگشت",moneyInt(m.optDouble("cancelBack"))+" ریال",leftEnd,t+3*row,mid,t+4*row,0.55f,true);
+        missionValueCell(c,"زمینی",m.optBoolean("ground",false)?"✓":"",mid,t, R,t+row,0.42f,false);
+        missionValueCell(c,"هوایی",m.optBoolean("air",false)?"✓":"",mid,t+row,R,t+2*row,0.42f,false);
+        missionValueCell(c,"کنسلی",m.optBoolean("cancel",false)?"✓":"",mid,t+2*row,R,t+3*row,0.42f,false);
+        missionValueCell(c,"پرداخت کننده",payer(m,"goPayer")+" / "+payer(m,"backPayer"),mid,t+3*row,R,t+4*row,0.42f,false);
+        // Travel schedule.
+        excelSection(c,"زمان بندی سفر",L,311,R);
+        t=317f; row=20f;
+        c.drawRect(L,t,R,t+2*row,line); c.drawLine(L+WID/2,t,L+WID/2,t+2*row,line); c.drawLine(L,t+row,R,t+row,line);
+        missionValueCell(c,"تاریخ شروع",m.optString("start"),L,t,L+WID/2,t+row,0.43f,true);
+        missionValueCell(c,"تاریخ برگشت",m.optString("end"),L+WID/2,t,R,t+row,0.43f,true);
+        missionValueCell(c,"زمان شروع",m.optString("startTime"),L,t+row,L+WID/2,t+2*row,0.43f,true);
+        missionValueCell(c,"زمان اتمام",m.optString("endTime"),L+WID/2,t+row,R,t+2*row,0.43f,true);
+        // Travel costs, with the total on its own full-width row.
+        excelSection(c,"هزینه سفر",L,365,R);
+        t=371f; row=20f;
+        c.drawRect(L,t,R,t+4*row,line); c.drawLine(L+WID/2,t,L+WID/2,t+3*row,line);
+        for(int i=1;i<3;i++) c.drawLine(L,t+i*row,R,t+i*row,line);
+        missionValueCell(c,"هتل",moneyInt(m.optDouble("hotel"))+" ریال / "+payer(m,"hotelPayer"),L,t,L+WID/2,t+row,0.36f,true);
+        missionValueCell(c,"تردد",moneyInt(expenseSum(m,"هزینه تردد درون شهری")+expenseSum(m,"هزینه شهر تهران"))+" ریال",L+WID/2,t,R,t+row,0.38f,true);
+        missionValueCell(c,"حقوق روزانه",moneyInt(missionPay(m))+" ریال",L,t+row,L+WID/2,t+2*row,0.36f,true);
+        missionValueCell(c,"متفرقه",moneyInt(expenseSum(m,"سایر هزینه ها"))+" ریال",L+WID/2,t+row,R,t+2*row,0.38f,true);
+        missionValueCell(c,"تعداد روزهای مأموریت",String.valueOf(m.optDouble("days",1)),L,t+2*row,L+WID/2,t+3*row,0.48f,true);
+        missionValueCell(c,"تعداد روزهای تعطیل",String.valueOf(m.optDouble("holiday",0)),L+WID/2,t+2*row,R,t+3*row,0.48f,true);
+        c.drawRect(L,t+3*row,R,t+4*row,line);
+        Paint totalP=pdfPaint(9f,true); totalP.setTextAlign(Paint.Align.RIGHT);
+        c.drawText("جمع کل:  "+moneyInt(total(m))+" ریال",R-8,t+3*row+14,totalP);
+        // Signature approval area and the two payment acknowledgements.
+        excelSection(c,"امضاء کارشناس / تائید مدیر گروه",L,459,R);
+        c.drawRect(L,465,R,500,line);
+        c.drawText("پرداخت هزینه فوق بلا مانع است.",R-8,479,small);
+        c.drawText("امضاء:",R-8,494,small);
+        excelSection(c,"پرداخت",L,513,R);
+        c.drawRect(L,519,R,569,line);
+        c.drawText("مبلغ "+moneyInt(total(m))+" ریال بابت حق علی الحساب ماموریت فوق به اینجانب پرداخت گردید.",R-8,532,small);
+        c.drawLine(L,544,R,544,line);
+        missionValueCell(c,"نام و نام خانوادگی",m.optString("person"),L,544,L+WID/2,556,0.47f,true);
+        missionValueCell(c,"تاریخ",m.optString("end"),L+WID/2,544,R,556,0.42f,true);
+        c.drawText("مبلغ "+moneyInt(total(m))+" ریال بابت تسویه ماموریت فوق به اینجانب پرداخت گردید.",R-8,563,small);
+        c.drawLine(L,569,R,569,line);
+        missionValueCell(c,"نام و نام خانوادگی",m.optString("person"),L,569,L+WID/2,581,0.47f,true);
+        missionValueCell(c,"تاریخ",m.optString("end"),L+WID/2,569,R,581,0.42f,true);
         excelFooter(c,W);
+    }
+
+    void missionValueCell(Canvas c,String label,String value,float l,float t,float r,float b,float labelFraction,boolean shade){
+        Paint edge=pdfPaint(1,false); edge.setColor(Color.BLACK); edge.setStrokeWidth(0.8f); edge.setStyle(Paint.Style.STROKE);
+        Paint bg=pdfPaint(1,false); bg.setStyle(Paint.Style.FILL); bg.setColor(shade?Color.rgb(220,220,220):Color.WHITE);
+        float divider=r-(r-l)*labelFraction;
+        c.drawRect(l,t,r,b,edge);
+        c.drawRect(l+0.6f,t+0.6f,divider,b-0.6f,bg);
+        c.drawLine(divider,t,divider,b,edge);
+        Paint q=pdfPaint(7.1f,false); q.setColor(Color.BLACK); q.setTextAlign(Paint.Align.RIGHT);
+        c.save(); c.clipRect(divider+2,t+1,r-2,b-1);
+        c.drawText(label,r-4,t+(b-t)*0.68f,q);
+        c.restore();
+        q.setTextAlign(Paint.Align.LEFT);
+        String v=value==null?"":value;
+        c.save(); c.clipRect(l+2,t+1,divider-2,b-1);
+        while(v.length()>1 && q.measureText(v)>Math.max(10,divider-l-8) && q.getTextSize()>5.2f) q.setTextSize(q.getTextSize()-0.25f);
+        c.drawText(v,l+4,t+(b-t)*0.68f,q);
+        c.restore();
     }
 
     void drawMissionField(Canvas c,String label,String value,float l,float t,float r,float b){
