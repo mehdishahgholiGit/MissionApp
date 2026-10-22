@@ -1,4 +1,35 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.missionapp'; compileSdk 35
- defaultConfig { applicationId 'com.missionapp'; minSdk 26; targetSdk 34; versionCode 1; versionName '1.0' }
+android {
+    namespace 'com.missionapp'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.missionapp'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    signingConfigs {
+        debugConfig {
+            def kf = file("${rootDir}/debug.keystore")
+            if (!kf.exists()) {
+                def b64 = file("${rootDir}/debug.keystore.base64")
+                if (b64.exists()) {
+                    kf.bytes = b64.text.trim().decodeBase64()
+                }
+            }
+            if (kf.exists()) {
+                storeFile kf
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debugConfig
+        }
+    }
 }
+

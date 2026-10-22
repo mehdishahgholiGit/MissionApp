@@ -1,0 +1,6 @@
+{
+  "name": "مدیریت مأموریت",
+  "description": "سامانه مدیریت مأموریت و هزینه‌ها",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,15 @@
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+local.properties
+.gradle/
+build/
+app/build/
+.build-outputs/
+.aistudio/
+debug.keystore
+.idea/
+*.iml
