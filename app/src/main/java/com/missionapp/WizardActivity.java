@@ -42,17 +42,17 @@ public class WizardActivity extends MainActivity {
         progressLabel=tv("مرحله ۱ از ۴",16);
         progressLabel.setTextColor(primary);
         progressLabel.setGravity(Gravity.CENTER);
-        box.addView(progressLabel,new LinearLayout.LayoutParams(-1,48));
+        box.addView(progressLabel,new LinearLayout.LayoutParams(-1,dp(48)));
 
         stepTitle=tv("",23); stepTitle.setTypeface(Typeface.create("tahoma",Typeface.NORMAL),Typeface.BOLD);
         stepTitle.setTextColor(primaryDark); stepTitle.setGravity(Gravity.CENTER);
-        box.addView(stepTitle,new LinearLayout.LayoutParams(-1,52));
+        box.addView(stepTitle,new LinearLayout.LayoutParams(-1,dp(52)));
 
         stepHint=tv("",16); stepHint.setTextColor(muted); stepHint.setGravity(Gravity.CENTER);
-        box.addView(stepHint,new LinearLayout.LayoutParams(-1,44));
+        box.addView(stepHint,new LinearLayout.LayoutParams(-1,dp(44)));
 
         contentBox=new LinearLayout(this); contentBox.setOrientation(LinearLayout.VERTICAL);
-        contentBox.setPadding(4,4,4,8); box.addView(contentBox,new LinearLayout.LayoutParams(-1,-2));
+        contentBox.setPadding(dp(4),dp(4),dp(4),dp(8)); box.addView(contentBox,new LinearLayout.LayoutParams(-1,-2));
 
         LinearLayout nav=new LinearLayout(this); nav.setOrientation(LinearLayout.HORIZONTAL); nav.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         backBtn=secondary("← قبلی"); backBtn.setOnClickListener(v->{if(step>1){step--;renderStep();}});
@@ -70,17 +70,17 @@ public class WizardActivity extends MainActivity {
         for(Button b : new Button[]{nextBtn,backBtn,homeBtn}){
             b.setMinWidth(0);
             b.setMinimumWidth(0);
-            b.setMinHeight(58);
-            b.setMinimumHeight(58);
-            b.setPadding(4,2,4,2);
+            b.setMinHeight(dp(58));
+            b.setMinimumHeight(dp(58));
+            b.setPadding(dp(4),dp(2),dp(4),dp(2));
             b.setTextSize(17);
         }
         nextBtn.setText("ادامه");
         backBtn.setText("قبلی");
         homeBtn.setText("⌂ خانه");
-        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,60,1f));
-        nav.addView(backBtn,new LinearLayout.LayoutParams(0,60,1f));
-        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,60,1f));
+        nav.addView(nextBtn,new LinearLayout.LayoutParams(0,-2,1f));
+        nav.addView(backBtn,new LinearLayout.LayoutParams(0,-2,1f));
+        nav.addView(homeBtn,new LinearLayout.LayoutParams(0,-2,1f));
         box.addView(nav);
         renderStep();
 
@@ -94,19 +94,19 @@ public class WizardActivity extends MainActivity {
         formScroll.setFillViewport(false);
         formScroll.setBackgroundColor(bg);
         formScroll.addView(box);
-        page.setPadding(8,8,8,8);
+        page.setPadding(dp(8),dp(8),dp(8),dp(8));
         page.setFitsSystemWindows(true);
         formScroll.setClipToPadding(false);
         page.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1f));
-        nav.setPadding(4,4,4,4);
+        nav.setPadding(dp(4),dp(4),dp(4),dp(4));
         nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setBackground(shape(card,16,border));
-        nav.setElevation(8);
+        nav.setElevation(dp(8));
         page.setFocusableInTouchMode(true);
         nav.setFocusable(false);
-        LinearLayout.LayoutParams navParams=new LinearLayout.LayoutParams(-1,64);
-        navParams.topMargin=6;
+        LinearLayout.LayoutParams navParams=new LinearLayout.LayoutParams(-1,-2);
+        navParams.topMargin=dp(6);
         page.addView(nav,navParams);
         // Keep navigation as a sibling of the scroll view so it stays at the bottom.
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
@@ -203,9 +203,9 @@ public class WizardActivity extends MainActivity {
             summaryLine(c,"مدت",days.getText().toString()+" روز / "+holiday.getText().toString()+" روز تعطیل");
             summaryLine(c,"حق مأموریت",money(missionPay(cur))+" ریال");
             summaryLine(c,"سایر هزینه‌ها",money(expenseSum(cur,null))+" ریال");
-            TextView total=tv("جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(8,22,8,22);c.addView(total);
+            TextView total=tv("جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(dp(8),dp(22),dp(8),dp(22));c.addView(total);
             contentBox.addView(c);
-            TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("دریافت / اشتراک PDF"); pdfBtn.setMinHeight(64); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,64));
+            TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("دریافت / اشتراک PDF"); pdfBtn.setMinHeight(dp(64)); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,dp(64)));
         }
         backBtn.setVisibility(step==1?View.INVISIBLE:View.VISIBLE);
         nextBtn.setText(step==4?"✓ ثبت نهایی":"ادامه →");
@@ -218,16 +218,16 @@ public class WizardActivity extends MainActivity {
     }
 
     LinearLayout sectionLocal(String title){
-        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(16,14,16,14);
+        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(16),dp(14),dp(16),dp(14));
         c.setBackground(shape(card,18,border));c.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView h=tv(title,17);h.setTextColor(primaryDark);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);h.setPadding(0,0,0,10);c.addView(h);
+        TextView h=tv(title,17);h.setTextColor(primaryDark);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);h.setPadding(dp(0),dp(0),dp(0),dp(10));c.addView(h);
         return c;
     }
 
     void summaryLine(LinearLayout c,String a,String b){
-        LinearLayout r=new LinearLayout(this);r.setPadding(10,8,10,8);r.setGravity(Gravity.CENTER_VERTICAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        LinearLayout r=new LinearLayout(this);r.setPadding(dp(10),dp(8),dp(10),dp(8));r.setGravity(Gravity.CENTER_VERTICAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         TextView l=tv(a,13);l.setTextColor(muted);TextView v=tv(b.isEmpty()?"—":b,15);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        r.addView(l,new LinearLayout.LayoutParams(0,42,1));r.addView(v,new LinearLayout.LayoutParams(0,42,2));c.addView(r);
+        r.addView(l,new LinearLayout.LayoutParams(0,dp(42),1));r.addView(v,new LinearLayout.LayoutParams(0,dp(42),2));c.addView(r);
     }
 
     boolean validateStep(){

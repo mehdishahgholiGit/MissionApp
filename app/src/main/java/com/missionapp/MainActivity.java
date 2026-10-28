@@ -56,26 +56,28 @@ public class MainActivity extends Activity {
 
     public void onCreate(Bundle b){ super.onCreate(b); darkMode=getPreferences(0).getBoolean("darkMode",false); setTheme(darkMode?R.style.AppThemeDark:R.style.AppTheme); applyColors(); load(); home(); }
 
+    int dp(int v){ return Math.round(v*getResources().getDisplayMetrics().density); }
+
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextColor(text);
-        v.setPadding(4,2,4,2); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        v.setPadding(dp(4),dp(2),dp(4),dp(2)); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); return v;
     }
 
     TextView label(String s){
-        TextView v=tv(s,15); v.setTextColor(muted); v.setPadding(2,0,2,5);
+        TextView v=tv(s,15); v.setTextColor(muted); v.setPadding(dp(2),dp(0),dp(2),dp(5));
         return v;
     }
 
     GradientDrawable shape(int color,float radius,int strokeColor){
-        GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(radius);
-        if(strokeColor!=Color.TRANSPARENT) g.setStroke(1,strokeColor); return g;
+        GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(Math.round(radius)));
+        if(strokeColor!=Color.TRANSPARENT) g.setStroke(Math.max(1,dp(1)),strokeColor); return g;
     }
 
     EditText ed(String hint){
         EditText v=new EditText(this); v.setHint(hint); v.setHintTextColor(palette(R.color.muted));
         v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextSize(18); v.setTextColor(text); v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        v.setSingleLine(true); v.setPadding(14,0,14,0); v.setBackground(shape(card,14,border));
+        v.setSingleLine(true); v.setPadding(dp(14),dp(0),dp(14),dp(0)); v.setBackground(shape(card,14,border));
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         if(hint.contains("هزینه")||hint.contains("مبلغ")||hint.contains("روز")||hint.contains("شماره"))
             v.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -84,12 +86,12 @@ public class MainActivity extends Activity {
 
     Button bt(String s){
         Button v=new Button(this); v.setText(s); v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); v.setTextSize(17); v.setAllCaps(false); v.setTextColor(palette(R.color.navy));
-        v.setPadding(12,4,12,4); v.setMinHeight(48); v.setMinimumHeight(48); v.setGravity(Gravity.CENTER);
+        v.setPadding(dp(12),dp(4),dp(12),dp(4)); v.setMinHeight(dp(48)); v.setMinimumHeight(dp(48)); v.setGravity(Gravity.CENTER);
         v.setBackground(shape(primary,14,Color.TRANSPARENT)); return v;
     }
 
     Button secondary(String s){
-        Button v=bt(s); v.setTextColor(palette(darkMode?R.color.teal:R.color.teal_dark)); v.setBackground(shape(card,14,palette(darkMode?R.color.teal:R.color.teal_dark))); v.setMinHeight(48); v.setTextSize(15); return v;
+        Button v=bt(s); v.setTextColor(palette(darkMode?R.color.teal:R.color.teal_dark)); v.setBackground(shape(card,14,palette(darkMode?R.color.teal:R.color.teal_dark))); v.setMinHeight(dp(48)); v.setTextSize(15); return v;
     }
 
     Spinner spinner(String[] a){
@@ -101,40 +103,40 @@ public class MainActivity extends Activity {
             }
             @Override public View getDropDownView(int position,View convertView,android.view.ViewGroup parent){
                 TextView v=(TextView)super.getDropDownView(position,convertView,parent);
-                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setPadding(18,14,18,14);return v;
+                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setPadding(dp(18),dp(14),dp(18),dp(14));return v;
             }
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         s.setAdapter(adapter);
-        s.setBackground(shape(card,14,border)); s.setPadding(10,0,10,0); s.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        s.setBackground(shape(card,14,border)); s.setPadding(dp(10),dp(0),dp(10),dp(0)); s.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         return s;
     }
 
     LinearLayout field(String name,View v){
-        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(0,3,0,3);
+        LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(0),dp(3),dp(0),dp(3));
         TextView lab=label(name);
         lab.setTypeface(Typeface.create("tahoma",Typeface.NORMAL),Typeface.BOLD);
         lab.setTextColor(primaryDark);
-        lab.setPadding(10,5,10,5);
+        lab.setPadding(dp(10),dp(5),dp(10),dp(5));
         lab.setBackground(shape(darkMode?palette(R.color.navy_surface):palette(R.color.background),8,Color.TRANSPARENT));
         lab.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-        lab.setMinHeight(38);
+        lab.setMinHeight(dp(38));
         lab.setSingleLine(false);
         lab.setMaxLines(2);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
-        lp.bottomMargin=6;
+        lp.bottomMargin=dp(6);
         l.addView(lab,lp);
-        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,54); vp.topMargin=0;
+        LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(54)); vp.topMargin=dp(0);
         l.addView(v,vp);
         return l;
     }
 
     LinearLayout section(String title){
-        LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(16,14,16,14);
+        LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(dp(16),dp(14),dp(16),dp(14));
         c.setBackground(shape(card,18,border)); c.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView h=tv(title,18); h.setTextColor(primaryDark); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD); h.setPadding(0,0,0,10);
+        TextView h=tv(title,18); h.setTextColor(primaryDark); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD); h.setPadding(dp(0),dp(0),dp(0),dp(10));
         c.addView(h); box.addView(c,new LinearLayout.LayoutParams(-1,-2));
-        Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(1,10)); return c;
+        Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(10))); return c;
     }
 
     LinearLayout row(){
@@ -148,21 +150,21 @@ public class MainActivity extends Activity {
         r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         LinearLayout a=field(n1,v1),b=field(n2,v2);
         LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1f);
-        ap.setMargins(3,0,3,0);
+        ap.setMargins(dp(3),dp(0),dp(3),dp(0));
         LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-2,1f);
-        bp.setMargins(3,0,3,0);
+        bp.setMargins(dp(3),dp(0),dp(3),dp(0));
         r.addView(a,ap);
         r.addView(b,bp);
     }
 
     void base(String title){
-        box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(12,12,12,12);
+        box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(12),dp(12),dp(12),dp(12));
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
         // Keep Android status/navigation bars visible; the system already insets this content.
         getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(scrollRoot);
-        LinearLayout bar=new LinearLayout(this); bar.setPadding(14,10,14,10); bar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout bar=new LinearLayout(this); bar.setPadding(dp(14),dp(10),dp(14),dp(10)); bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackground(shape(palette(R.color.navy),16,Color.TRANSPARENT));
         bar.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         WebView brandMark=new WebView(this);
@@ -171,10 +173,10 @@ public class MainActivity extends Activity {
         brandMark.setHorizontalScrollBarEnabled(false);
         brandMark.setOverScrollMode(View.OVER_SCROLL_NEVER);
         brandMark.loadDataWithBaseURL("file:///android_asset/brand/","<html><body style='margin:0;background:transparent;display:flex;align-items:center;justify-content:center'><img src='logo-full.svg' style='width:48px;height:48px;object-fit:contain'/></body></html>","text/html","UTF-8",null);
-        bar.addView(brandMark,new LinearLayout.LayoutParams(52,52));
+        bar.addView(brandMark,new LinearLayout.LayoutParams(dp(52),dp(52)));
         TextView h=tv(title,21); h.setTextColor(palette(R.color.white)); h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        bar.addView(h,new LinearLayout.LayoutParams(0,60,1)); box.addView(bar);
-        Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(1,12));
+        bar.addView(h,new LinearLayout.LayoutParams(0,dp(60),1)); box.addView(bar);
+        Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(dp(1),dp(12)));
     }
 
     String money(double x){ return String.format(Locale.US,"%,.2f",x); }
@@ -210,29 +212,29 @@ public class MainActivity extends Activity {
 
     void home(){
         base("مدیریت مأموریت و هزینه‌ها");
-        TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(4,0,4,12); box.addView(intro);
+        TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(dp(4),dp(0),dp(4),dp(12)); box.addView(intro);
 
         Button mode=secondary(darkMode?"تغییر به حالت روشن":"تغییر به حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
-        Space modeSp=new Space(this); box.addView(modeSp,new LinearLayout.LayoutParams(1,8));
+        Space modeSp=new Space(this); box.addView(modeSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
 
         Button n=bt("＋  ثبت مأموریت جدید"); n.setOnClickListener(v->{cur=new JSONObject();try{cur.put("expenses",new JSONArray());}catch(Exception e){}edit();}); box.addView(n);
-        Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(1,12));
+        Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(12)));
 
         TextView count=tv("مأموریت‌های ثبت‌شده  ("+data.size()+")",17); count.setTypeface(Typeface.DEFAULT,Typeface.BOLD); box.addView(count);
-        Space sp2=new Space(this); box.addView(sp2,new LinearLayout.LayoutParams(1,6));
+        Space sp2=new Space(this); box.addView(sp2,new LinearLayout.LayoutParams(dp(1),dp(6)));
 
         if(data.isEmpty()){
-            LinearLayout empty=new LinearLayout(this); empty.setGravity(Gravity.CENTER); empty.setPadding(20,30,20,30); empty.setBackground(shape(card,18,border));
+            LinearLayout empty=new LinearLayout(this); empty.setGravity(Gravity.CENTER); empty.setPadding(dp(20),dp(30),dp(20),dp(30)); empty.setBackground(shape(card,18,border));
             TextView e=tv("هنوز مأموریتی ثبت نشده است\nبرای شروع، «ثبت مأموریت جدید» را بزنید.",15); e.setGravity(Gravity.CENTER); e.setTextColor(muted); empty.addView(e); box.addView(empty);
         } else {
             for(JSONObject m:data){
-                LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(16,12,16,12); c.setBackground(shape(card,16,border));
+                LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(dp(16),dp(12),dp(16),dp(12)); c.setBackground(shape(card,16,border));
                 TextView a=tv("فرم "+(m.optString("form").isEmpty()?"بدون شماره":m.optString("form"))+" — "+m.optString("subject","بدون موضوع"),18); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 TextView b=tv("شماره فرم: "+(m.optString("form").isEmpty()?"—":m.optString("form"))+"    |    مقصد: "+m.optString("destination","")+"    |    کارشناس: "+m.optString("person",""),15); b.setTextColor(muted);
                 TextView z=tv("جمع قابل پرداخت: "+money(total(m))+" ریال",14); z.setTextColor(green); z.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 c.addView(a); c.addView(b); c.addView(z);
                 c.setOnClickListener(v->{cur=m;edit();}); box.addView(c);
-                Space q=new Space(this); box.addView(q,new LinearLayout.LayoutParams(1,8));
+                Space q=new Space(this); box.addView(q,new LinearLayout.LayoutParams(dp(1),dp(8)));
             }
         }
     }
@@ -274,7 +276,7 @@ public class MainActivity extends Activity {
 
         LinearLayout s4=section("ریز هزینه‌ها");
         LinearLayout exList=new LinearLayout(this);exList.setOrientation(LinearLayout.VERTICAL);s4.addView(exList);
-        TextView sum=tv("جمع قابل پرداخت: "+money(total(cur))+" ریال",18);sum.setTextColor(green);sum.setTypeface(Typeface.DEFAULT,Typeface.BOLD);sum.setGravity(Gravity.CENTER);sum.setPadding(5,14,5,14);s4.addView(sum);
+        TextView sum=tv("جمع قابل پرداخت: "+money(total(cur))+" ریال",18);sum.setTextColor(green);sum.setTypeface(Typeface.DEFAULT,Typeface.BOLD);sum.setGravity(Gravity.CENTER);sum.setPadding(dp(5),dp(14),dp(5),dp(14));s4.addView(sum);
         Button ex=bt("＋  افزودن ردیف هزینه");ex.setOnClickListener(v->expenseDialog(exList,sum));s4.addView(ex);render(exList,sum);
 
         LinearLayout actions=section("عملیات");
@@ -287,11 +289,11 @@ public class MainActivity extends Activity {
         });
         Button pdf=secondary("تولید PDF با فرم رسمی"); pdf.setOnClickListener(v->pdf(cur));
         Button backBtn=secondary("‹  بازگشت"); backBtn.setOnClickListener(v->home());
-        actions.addView(save); Space x=new Space(this);actions.addView(x,new LinearLayout.LayoutParams(1,6));actions.addView(pdf);Space y=new Space(this);actions.addView(y,new LinearLayout.LayoutParams(1,6));actions.addView(backBtn);
+        actions.addView(save); Space x=new Space(this);actions.addView(x,new LinearLayout.LayoutParams(dp(1),dp(6)));actions.addView(pdf);Space y=new Space(this);actions.addView(y,new LinearLayout.LayoutParams(dp(1),dp(6)));actions.addView(backBtn);
     }
 
     void expenseDialog(LinearLayout list,TextView sum){
-        LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(10,4,10,4);
+        LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(10),dp(4),dp(10),dp(4));
         Spinner cat=spinner(cats),ti=spinner(tehranItems); l.addView(field("نوع هزینه",cat));l.addView(field("شرح/مورد تهران",ti));
         EditText date=ed("تاریخ"),desc=ed("شرح"),invoice=ed("شماره فاکتور"),amount=ed("مبلغ");
         attachDatePicker(date); l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("شماره فاکتور",invoice));l.addView(field("مبلغ",amount));
@@ -305,10 +307,10 @@ public class MainActivity extends Activity {
         list.removeAllViews(); JSONArray a=cur.optJSONArray("expenses");
         if(a!=null) for(int i=0;i<a.length();i++){
             final int k=i; JSONObject o=a.optJSONObject(i);
-            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(8,6,8,6);r.setBackground(shape(palette(R.color.background),12,border));
+            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(8),dp(6),dp(8),dp(6));r.setBackground(shape(palette(R.color.background),12,border));
             TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال",13);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-            Button del=secondary("حذف");del.setTextColor(red);del.setMinHeight(44);del.setOnClickListener(v->{a.remove(k);render(list,sum);});
-            r.addView(t,new LinearLayout.LayoutParams(0,-2,1));r.addView(del,new LinearLayout.LayoutParams(80,48));list.addView(r);Space s=new Space(this);list.addView(s,new LinearLayout.LayoutParams(1,6));
+            Button del=secondary("حذف");del.setTextColor(red);del.setMinHeight(dp(44));del.setOnClickListener(v->{a.remove(k);render(list,sum);});
+            r.addView(t,new LinearLayout.LayoutParams(0,-2,1));r.addView(del,new LinearLayout.LayoutParams(dp(80),dp(48)));list.addView(r);Space s=new Space(this);list.addView(s,new LinearLayout.LayoutParams(dp(1),dp(6)));
         }
         sum.setText("جمع قابل پرداخت: "+money(total(cur))+" ریال");
     }
@@ -328,12 +330,12 @@ public class MainActivity extends Activity {
         int[] curj=gregorianToJalali(Calendar.getInstance().get(Calendar.YEAR),Calendar.getInstance().get(Calendar.MONTH)+1,Calendar.getInstance().get(Calendar.DAY_OF_MONTH));
         if(curj!=null){jy=curj[0];jm=curj[1];jd=curj[2];}
         try{String[] p=target.getText().toString().replace("-","/").split("/");if(p.length==3){jy=Integer.parseInt(p[0]);jm=Integer.parseInt(p[1]);jd=Integer.parseInt(p[2]);}}catch(Exception ignored){}
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.HORIZONTAL);root.setGravity(Gravity.CENTER);root.setPadding(12,8,12,8);root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.HORIZONTAL);root.setGravity(Gravity.CENTER);root.setPadding(dp(12),dp(8),dp(12),dp(8));root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         Spinner ys=spinner(new String[]{"1403","1404","1405","1406","1407","1408","1409","1410","1411","1412","1413","1414","1415"});
         Spinner ms=spinner(new String[]{"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"});
         Spinner ds=spinner(new String[]{"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31"});
         ys.setSelection(Math.max(0,Math.min(12,jy-1403)));ms.setSelection(Math.max(0,jm-1));ds.setSelection(Math.max(0,jd-1));
-        root.addView(ds,new LinearLayout.LayoutParams(0,58,1));root.addView(ms,new LinearLayout.LayoutParams(0,58,1));root.addView(ys,new LinearLayout.LayoutParams(0,58,1));
+        root.addView(ds,new LinearLayout.LayoutParams(0,dp(58),1));root.addView(ms,new LinearLayout.LayoutParams(0,dp(58),1));root.addView(ys,new LinearLayout.LayoutParams(0,dp(58),1));
         AlertDialog dlg=new AlertDialog.Builder(this).setTitle("انتخاب تاریخ شمسی").setView(root).setNegativeButton("انصراف",null).setPositiveButton("تأیید",null).create();
         dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{int y=1403+ys.getSelectedItemPosition(),m=1+ms.getSelectedItemPosition(),d=1+ds.getSelectedItemPosition();int max=m<=6?31:(m<=11?30:(jalaliLeap(y)?30:29));if(d>max)d=max;target.setText(String.format(Locale.US,"%04d/%02d/%02d",y,m,d));dlg.dismiss();}));
         dlg.show();
