@@ -157,7 +157,17 @@ public class WizardActivity extends MainActivity {
         });
     }
 
+    void detach(View v){ if(v!=null && v.getParent() instanceof ViewGroup) ((ViewGroup)v.getParent()).removeView(v); }
+
+    /** Inputs are reused between steps; free them from their old rows before re-adding (fixes the crash on "قبلی"). */
+    void detachInputs(){
+        if(form==null) return;
+        View[] all={form,service,subject,dest,start,end,startTime,endTime,days,holiday,hotel,go,back,cancelGo,cancelBack,goNo,backNo,ps,ds,hp,gp,bp,cgp,cbp,suburb};
+        for(View v:all) detach(v);
+    }
+
     void renderStep(){
+        detachInputs();
         contentBox.removeAllViews();
         progressLabel.setText(new String[]{"","مرحله ۱ از ۴","مرحله ۲ از ۴","مرحله ۳ از ۴","مرحله ۴ از ۴"}[step]);
         stepTitle.setText(new String[]{"","۱. اطلاعات مأموریت","۲. زمان و نوع مأموریت","۳. هزینه‌ها","۴. بررسی نهایی"}[step]);

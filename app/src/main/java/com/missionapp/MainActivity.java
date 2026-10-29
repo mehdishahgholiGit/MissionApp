@@ -99,11 +99,11 @@ public class MainActivity extends Activity {
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,a){
             @Override public View getView(int position,View convertView,android.view.ViewGroup parent){
                 TextView v=(TextView)super.getView(position,convertView,parent);
-                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);return v;
+                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setTextColor(text);v.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);return v;
             }
             @Override public View getDropDownView(int position,View convertView,android.view.ViewGroup parent){
                 TextView v=(TextView)super.getDropDownView(position,convertView,parent);
-                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setPadding(dp(18),dp(14),dp(18),dp(14));return v;
+                v.setTypeface(Typeface.create("tahoma",Typeface.NORMAL));v.setTextSize(17);v.setTextColor(text);v.setBackgroundColor(card);v.setPadding(dp(18),dp(14),dp(18),dp(14));return v;
             }
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -301,25 +301,50 @@ public class MainActivity extends Activity {
         actions.addView(save); Space x=new Space(this);actions.addView(x,new LinearLayout.LayoutParams(dp(1),dp(6)));actions.addView(pdf);Space y=new Space(this);actions.addView(y,new LinearLayout.LayoutParams(dp(1),dp(6)));actions.addView(backBtn);
     }
 
-    void expenseDialog(LinearLayout list,TextView sum){
-        LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(10),dp(4),dp(10),dp(4));
-        Spinner cat=spinner(cats),ti=spinner(tehranItems); l.addView(field("نوع هزینه",cat));l.addView(field("شرح/مورد تهران",ti));
-        EditText date=ed("تاریخ"),desc=ed("شرح"),invoice=ed("شماره فاکتور"),amount=ed("مبلغ");
+    void expenseDialog(LinearLayout list,TextView sum){ expenseDialog(list,sum,-1); }
+
+    String plainNumber(double v){ return v==Math.floor(v)?String.valueOf((long)v):String.valueOf(v); }
+
+    /** idx < 0: add a new expense; idx >= 0: edit the expense at that position. */
+    void expenseDialog(final LinearLayout list,final TextView sum,final int idx){
+        JSONArray all=cur.optJSONArray("expenses");
+        JSONObject old=(idx>=0&&all!=null)?all.optJSONObject(idx):null;
+        LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(10),dp(4),dp(10),dp(4));l.setBackgroundColor(bg);
+        final Spinner cat=spinner(cats),ti=spinner(tehranItems); l.addView(field("نوع هزینه",cat));l.addView(field("شرح/مورد تهران",ti));
+        final EditText date=ed("تاریخ"),desc=ed("شرح"),invoice=ed("شماره فاکتور"),amount=ed("مبلغ");
         attachDatePicker(date); l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("شماره فاکتور",invoice));l.addView(field("مبلغ",amount));
+        if(old!=null){
+            cat.setSelection(index(cats,old.optString("category"))); ti.setSelection(index(tehranItems,old.optString("tehranItem")));
+            date.setText(old.optString("date")); desc.setText(old.optString("desc")); invoice.setText(old.optString("invoice"));
+            amount.setText(plainNumber(old.optDouble("amount",0)));
+        }
+        ti.setVisibility(cat.getSelectedItemPosition()==0?View.VISIBLE:View.GONE);
         cat.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){ti.setVisibility(pos==0?View.VISIBLE:View.GONE);}public void onNothingSelected(android.widget.AdapterView<?> p){}});
-        new AlertDialog.Builder(this).setTitle("افزودن هزینه").setView(l).setNegativeButton("انصراف",null).setPositiveButton("ثبت هزینه",(d,w)->{
-            try{JSONArray a=cur.getJSONArray("expenses");JSONObject o=new JSONObject();o.put("category",cat.getSelectedItem().toString());o.put("tehranItem",ti.getSelectedItem().toString());o.put("date",date.getText().toString());o.put("desc",desc.getText().toString());o.put("invoice",invoice.getText().toString());o.put("amount",num(amount));a.put(o);render(list,sum);}catch(Exception e){toast(e.getMessage());}
+        ScrollView sv=new ScrollView(this); sv.addView(l);
+        new AlertDialog.Builder(this).setTitle(idx>=0?"ویرایش هزینه":"افزودن هزینه").setView(sv).setNegativeButton("انصراف",null).setPositiveButton(idx>=0?"ذخیره تغییرات":"ثبت هزینه",(d,w)->{
+            try{
+                JSONArray a=cur.optJSONArray("expenses"); if(a==null){a=new JSONArray();cur.put("expenses",a);}
+                JSONObject o=new JSONObject();o.put("category",cat.getSelectedItem().toString());o.put("tehranItem",ti.getSelectedItem().toString());o.put("date",date.getText().toString());o.put("desc",desc.getText().toString());o.put("invoice",invoice.getText().toString());o.put("amount",num(amount));
+                if(idx>=0&&idx<a.length()) a.put(idx,o); else a.put(o);
+                render(list,sum);
+            }catch(Exception e){toast(e.getMessage());}
         }).show();
     }
 
-    void render(LinearLayout list,TextView sum){
-        list.removeAllViews(); JSONArray a=cur.optJSONArray("expenses");
+    void render(final LinearLayout list,final TextView sum){
+        list.removeAllViews(); final JSONArray a=cur.optJSONArray("expenses");
         if(a!=null) for(int i=0;i<a.length();i++){
-            final int k=i; JSONObject o=a.optJSONObject(i);
-            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(8),dp(6),dp(8),dp(6));r.setBackground(shape(palette(R.color.background),12,border));
-            TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال",13);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-            Button del=secondary("حذف");del.setTextColor(red);del.setMinHeight(dp(44));del.setOnClickListener(v->{a.remove(k);render(list,sum);});
-            r.addView(t,new LinearLayout.LayoutParams(0,-2,1));r.addView(del,new LinearLayout.LayoutParams(dp(80),dp(48)));list.addView(r);Space s=new Space(this);list.addView(s,new LinearLayout.LayoutParams(dp(1),dp(6)));
+            final int k=i; JSONObject o=a.optJSONObject(i); if(o==null) continue;
+            LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(8),dp(6),dp(8),dp(6));r.setBackground(shape(bg,12,border));r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال",13);t.setTextColor(text);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            Button edt=secondary("ویرایش");edt.setTextSize(13);edt.setMinHeight(dp(44));edt.setOnClickListener(v->expenseDialog(list,sum,k));
+            Button del=secondary("حذف");del.setTextSize(13);del.setTextColor(red);del.setMinHeight(dp(44));
+            del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف هزینه").setMessage("این هزینه حذف شود؟").setNegativeButton("انصراف",null).setPositiveButton("حذف",(dd,ww)->{a.remove(k);render(list,sum);}).show());
+            r.setOnClickListener(v->expenseDialog(list,sum,k));
+            r.addView(t,new LinearLayout.LayoutParams(0,-2,1));
+            LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(dp(72),dp(48)); bp.setMargins(dp(4),0,0,0);
+            r.addView(edt,bp); r.addView(del,new LinearLayout.LayoutParams(dp(64),dp(48)));
+            list.addView(r);Space sp=new Space(this);list.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(6)));
         }
         sum.setText("جمع قابل پرداخت: "+money(total(cur))+" ریال");
     }
