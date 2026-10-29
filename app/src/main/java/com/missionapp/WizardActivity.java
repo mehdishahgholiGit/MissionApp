@@ -5,6 +5,7 @@ import android.app.TimePickerDialog;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.graphics.*;
+import android.text.InputType;
 import android.view.*;
 import android.widget.*;
 import org.json.*;
@@ -27,6 +28,8 @@ public class WizardActivity extends MainActivity {
         // Recreate every input when opening another mission; never reuse detached views.
         step=1;
         form=null;
+        attachList=null;
+        ensureUuid(cur);
         buildWizard();
     }
 
@@ -116,7 +119,8 @@ public class WizardActivity extends MainActivity {
     }
 
     void makeFields(){
-        form=ed("شماره فرم"); service=ed("شماره سرویس"); subject=ed("موضوع"); dest=ed("مقصد");
+        form=ed("شماره فرم"); service=ed("شماره سرویس");
+        service.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE); service.setSingleLine(false); service.setMinLines(2); service.setMaxLines(4); service.setGravity(Gravity.RIGHT|Gravity.TOP); service.setPadding(dp(14),dp(10),dp(14),dp(10)); subject=ed("موضوع"); dest=ed("مقصد");
         start=ed("تاریخ شروع"); end=ed("تاریخ پایان"); startTime=ed("زمان شروع"); endTime=ed("زمان پایان");
         days=ed("تعداد روز"); holiday=ed("تعداد روز تعطیل");
         hotel=ed("مبلغ هتل"); go=ed("مبلغ بلیط رفت"); back=ed("مبلغ بلیط برگشت");
@@ -177,7 +181,7 @@ public class WizardActivity extends MainActivity {
         if(step==1){
             LinearLayout c=sectionLocal("اطلاعات ضروری");
             c.addView(field("نام کارشناس",ps)); c.addView(field("مقصد",dest)); c.addView(field("موضوع",subject));
-            LinearLayout r=row(); add2(r,"شماره فرم",form,"شماره سرویس",service); c.addView(r);
+            c.addView(field("شماره فرم",form)); c.addView(field("شماره سرویس (چند شماره را با ویرگول، فاصله یا خط جدید جدا کنید)",service));
             contentBox.addView(c);
         } else if(step==2){
             LinearLayout c=sectionLocal("زمان مأموریت");
@@ -204,6 +208,14 @@ public class WizardActivity extends MainActivity {
             Button add=bt("＋ افزودن هزینه");add.setOnClickListener(v->expenseDialog(expenseList,expenseSum));e.addView(add);
             render(expenseList,expenseSum);
             contentBox.addView(e);
+
+            Space aSp=new Space(this); contentBox.addView(aSp,new LinearLayout.LayoutParams(dp(1),dp(10)));
+            LinearLayout at=sectionLocal("پیوست‌ها (عکس یا PDF)");
+            TextView ah=tv("هر تعداد فایل اضافه کنید؛ بعد از صفحه‌های فرم، عیناً به انتهای PDF اضافه می‌شوند.",13); ah.setTextColor(muted); at.addView(ah);
+            attachList=new LinearLayout(this); attachList.setOrientation(LinearLayout.VERTICAL); attachList.setPadding(0,dp(8),0,dp(4)); at.addView(attachList);
+            Button addA=bt("＋ افزودن عکس یا PDF"); addA.setOnClickListener(v->pickAttachments()); at.addView(addA);
+            renderAttachments();
+            contentBox.addView(at);
         } else {
             LinearLayout c=sectionLocal("خلاصه مأموریت");
             summaryLine(c,"کارشناس",ps.getSelectedItem().toString());
@@ -213,6 +225,8 @@ public class WizardActivity extends MainActivity {
             summaryLine(c,"مدت",days.getText().toString()+" روز / "+holiday.getText().toString()+" روز تعطیل");
             summaryLine(c,"حق مأموریت",money(missionPay(cur))+" ریال");
             summaryLine(c,"سایر هزینه‌ها",money(expenseSum(cur,null))+" ریال");
+            { JSONArray atts=cur.optJSONArray("attachments"); summaryLine(c,"پیوست‌ها",(atts==null?0:atts.length())+" فایل"); }
+            summaryLine(c,"شماره سرویس",joinServices(parseServices(service.getText().toString())));
             TextView total=tv("جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(dp(8),dp(22),dp(8),dp(22));c.addView(total);
             contentBox.addView(c);
             TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("دریافت / اشتراک PDF"); pdfBtn.setMinHeight(dp(64)); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,dp(64)));
@@ -244,6 +258,8 @@ public class WizardActivity extends MainActivity {
         try{
             if(step==1){
                 if(ps.getSelectedItemPosition()==0 && people.length>1){} 
+                String sErr=serviceConflict(service.getText().toString(),cur);
+                if(sErr!=null){toast(sErr);return false;}
                 String fno=form.getText().toString().trim();
                 if(fno.isEmpty()){toast("شماره فرم را وارد کنید");return false;}
                 if(formExists(fno,cur)){toast("مأموریتی با شماره فرم "+fno+" قبلاً ثبت شده است. شماره دیگری وارد کنید");return false;}
@@ -262,7 +278,7 @@ public class WizardActivity extends MainActivity {
 
     void sync(){
         try{
-            cur.put("form",form.getText().toString());cur.put("service",service.getText().toString());
+            cur.put("form",form.getText().toString());cur.put("service",joinServices(parseServices(service.getText().toString())));
             cur.put("person",ps.getSelectedItem().toString());cur.put("device",ds.getSelectedItem().toString());
             cur.put("subject",subject.getText().toString());cur.put("destination",dest.getText().toString());
             cur.put("start",start.getText().toString());cur.put("end",end.getText().toString());
@@ -283,6 +299,8 @@ public class WizardActivity extends MainActivity {
             validate7(end.getText().toString());
             String formNo=cur.optString("form","").trim();
             if(formNo.isEmpty()){toast("شماره فرم را وارد کنید تا مأموریت با همان شماره ذخیره شود");return;}
+            String sErr=serviceConflict(cur.optString("service",""),cur);
+            if(sErr!=null){toast(sErr);return;}
             if(formExists(formNo,cur)){toast("مأموریتی با شماره فرم "+formNo+" قبلاً ثبت شده است. شماره دیگری وارد کنید");return;}
             if(!data.contains(cur)) data.add(cur);
             save();
