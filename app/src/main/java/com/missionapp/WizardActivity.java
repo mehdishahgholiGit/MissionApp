@@ -38,7 +38,7 @@ public class WizardActivity extends MainActivity {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
             getWindow().setDecorFitsSystemWindows(true);
         }
-        base(cur.length()==0?"مأموریت جدید":"ویرایش مأموریت");
+        base(data.contains(cur)?"ویرایش مأموریت":"مأموریت جدید");
         progressLabel=tv("مرحله ۱ از ۴",16);
         progressLabel.setTextColor(primary);
         progressLabel.setGravity(Gravity.CENTER);
@@ -127,10 +127,10 @@ public class WizardActivity extends MainActivity {
         form.setText(cur.optString("form")); service.setText(cur.optString("service")); subject.setText(cur.optString("subject"));
         dest.setText(cur.optString("destination")); start.setText(cur.optString("start")); end.setText(cur.optString("end"));
         startTime.setText(cur.optString("startTime")); endTime.setText(cur.optString("endTime"));
-        days.setText(String.valueOf(cur.optDouble("days",1))); holiday.setText(String.valueOf(cur.optDouble("holiday",0)));
-        hotel.setText(String.valueOf(cur.optDouble("hotel",0))); go.setText(String.valueOf(cur.optDouble("ticketGo",0)));
-        back.setText(String.valueOf(cur.optDouble("ticketBack",0))); cancelGo.setText(String.valueOf(cur.optDouble("cancelGo",0)));
-        cancelBack.setText(String.valueOf(cur.optDouble("cancelBack",0))); goNo.setText(cur.optString("goNo")); backNo.setText(cur.optString("backNo"));
+        days.setText(plainNumber(cur.optDouble("days",1))); holiday.setText(plainNumber(cur.optDouble("holiday",0)));
+        hotel.setText(moneyText(cur.optDouble("hotel",0))); go.setText(moneyText(cur.optDouble("ticketGo",0)));
+        back.setText(moneyText(cur.optDouble("ticketBack",0))); cancelGo.setText(moneyText(cur.optDouble("cancelGo",0)));
+        cancelBack.setText(moneyText(cur.optDouble("cancelBack",0))); goNo.setText(cur.optString("goNo")); backNo.setText(cur.optString("backNo"));
         ps.setSelection(index(people,cur.optString("person"))); ds.setSelection(index(devices,cur.optString("device")));
         hp.setSelection(index(payers,payer(cur,"hotelPayer"))); gp.setSelection(index(payers,payer(cur,"goPayer")));
         bp.setSelection(index(payers,payer(cur,"backPayer"))); cgp.setSelection(index(payers,payer(cur,"cancelGoPayer")));
@@ -244,6 +244,9 @@ public class WizardActivity extends MainActivity {
         try{
             if(step==1){
                 if(ps.getSelectedItemPosition()==0 && people.length>1){} 
+                String fno=form.getText().toString().trim();
+                if(fno.isEmpty()){toast("شماره فرم را وارد کنید");return false;}
+                if(formExists(fno,cur)){toast("مأموریتی با شماره فرم "+fno+" قبلاً ثبت شده است. شماره دیگری وارد کنید");return false;}
                 if(dest.getText().toString().trim().isEmpty()){toast("مقصد را وارد کنید");return false;}
                 if(subject.getText().toString().trim().isEmpty()){toast("موضوع مأموریت را وارد کنید");return false;}
             }
@@ -280,12 +283,8 @@ public class WizardActivity extends MainActivity {
             validate7(end.getText().toString());
             String formNo=cur.optString("form","").trim();
             if(formNo.isEmpty()){toast("شماره فرم را وارد کنید تا مأموریت با همان شماره ذخیره شود");return;}
-            int existing=-1;
-            for(int i=0;i<data.size();i++){
-                if(data.get(i)!=cur && formNo.equals(data.get(i).optString("form","").trim())){existing=i;break;}
-            }
-            if(existing>=0)data.set(existing,cur);
-            else if(!data.contains(cur))data.add(cur);
+            if(formExists(formNo,cur)){toast("مأموریتی با شماره فرم "+formNo+" قبلاً ثبت شده است. شماره دیگری وارد کنید");return;}
+            if(!data.contains(cur)) data.add(cur);
             save();
             new AlertDialog.Builder(this).setTitle("مأموریت ثبت شد").setMessage("اطلاعات با موفقیت ذخیره شد. آیا می‌خواهید همین حالا PDF را دریافت یا ارسال کنید؟").setNegativeButton("بعداً", (d,which)->home()).setPositiveButton("دریافت PDF", (d,which)->pdf(cur)).show();
         }catch(Exception e){toast(e.getMessage());}

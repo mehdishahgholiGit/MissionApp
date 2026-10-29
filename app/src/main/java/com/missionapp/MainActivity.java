@@ -81,6 +81,7 @@ public class MainActivity extends Activity {
         v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         if(hint.contains("هزینه")||hint.contains("مبلغ")||hint.contains("روز")||hint.contains("شماره"))
             v.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        if(hint.contains("مبلغ")) addThousands(v);
         return v;
     }
 
@@ -179,7 +180,61 @@ public class MainActivity extends Activity {
         Space s=new Space(this); box.addView(s,new LinearLayout.LayoutParams(dp(1),dp(12)));
     }
 
-    String money(double x){ return String.format(Locale.US,"%,.2f",x); }
+    /** Amounts are rials: whole numbers with thousands separators. */
+    String money(double x){ return String.format(Locale.US,"%,.0f",x); }
+    /** For input fields: empty for zero, otherwise 1,234,567. */
+    String moneyText(double v){ return v==0?"":String.format(Locale.US,"%,.0f",v); }
+
+    /** Persian/Arabic digits and separators -> ASCII. */
+    String normDigits(String s){
+        if(s==null) return "";
+        StringBuilder b=new StringBuilder();
+        for(char c:s.toCharArray()){
+            if(c>='\u06F0'&&c<='\u06F9') b.append((char)('0'+(c-'\u06F0')));
+            else if(c>='\u0660'&&c<='\u0669') b.append((char)('0'+(c-'\u0660')));
+            else if(c=='\u066C'||c=='\u060C') b.append(',');
+            else if(c=='\u066B') b.append('.');
+            else b.append(c);
+        }
+        return b.toString();
+    }
+
+    /** Live thousands separators for rial amount fields (digits only). */
+    void addThousands(final EditText e){
+        e.setKeyListener(android.text.method.DigitsKeyListener.getInstance("0123456789,\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669\u066C\u060C"));
+        e.addTextChangedListener(new android.text.TextWatcher(){
+            boolean busy;
+            public void beforeTextChanged(CharSequence a,int b,int c,int d){}
+            public void onTextChanged(CharSequence a,int b,int c,int d){}
+            public void afterTextChanged(android.text.Editable ed){
+                if(busy) return; busy=true;
+                try{
+                    String curText=ed.toString();
+                    int cursor=Math.min(e.getSelectionStart()<0?curText.length():e.getSelectionStart(),curText.length());
+                    String before=normDigits(curText.substring(0,cursor)).replaceAll("[^0-9]","");
+                    String digits=normDigits(curText).replaceAll("[^0-9]","");
+                    if(digits.length()>15) digits=digits.substring(0,15);
+                    String f=digits.isEmpty()?"":String.format(Locale.US,"%,d",Long.parseLong(digits));
+                    if(!f.equals(curText)){
+                        e.setText(f);
+                        int cnt=0,pos=0; int want=Math.min(before.length(),digits.length());
+                        while(pos<f.length()&&cnt<want){ if(Character.isDigit(f.charAt(pos))) cnt++; pos++; }
+                        e.setSelection(Math.min(pos,f.length()));
+                    }
+                }catch(Exception ignored){}
+                busy=false;
+            }
+        });
+    }
+
+    String normForm(String s){ return normDigits(s).replaceAll("\\s+","").toLowerCase(Locale.ROOT); }
+
+    /** True if another saved mission already uses this form number. */
+    boolean formExists(String form,JSONObject except){
+        String f=normForm(form); if(f.isEmpty()) return false;
+        for(JSONObject d:data) if(d!=except && f.equals(normForm(d.optString("form","")))) return true;
+        return false;
+    }
     String moneyInt(double x){ return String.format(Locale.US,"%,.0f",x); }
 
     String words(long n){
@@ -194,7 +249,7 @@ public class MainActivity extends Activity {
     }
 
     String amountWords(double v){ return words(Math.round(v))+" ریال"; }
-    double num(EditText e){ try{return Double.parseDouble(e.getText().toString().replace(",",""));}catch(Exception x){return 0;} }
+    double num(EditText e){ try{return Double.parseDouble(normDigits(e.getText().toString()).replace(",","").trim());}catch(Exception x){return 0;} }
 
     double expenseSum(JSONObject m,String cat){
         double s=0; JSONArray a=m.optJSONArray("expenses");
@@ -316,7 +371,7 @@ public class MainActivity extends Activity {
         if(old!=null){
             cat.setSelection(index(cats,old.optString("category"))); ti.setSelection(index(tehranItems,old.optString("tehranItem")));
             date.setText(old.optString("date")); desc.setText(old.optString("desc")); invoice.setText(old.optString("invoice"));
-            amount.setText(plainNumber(old.optDouble("amount",0)));
+            amount.setText(moneyText(old.optDouble("amount",0)));
         }
         ti.setVisibility(cat.getSelectedItemPosition()==0?View.VISIBLE:View.GONE);
         cat.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){ti.setVisibility(pos==0?View.VISIBLE:View.GONE);}public void onNothingSelected(android.widget.AdapterView<?> p){}});
@@ -432,9 +487,15 @@ public class MainActivity extends Activity {
         if(replace) data.clear();
         java.util.HashSet<String> have=new java.util.HashSet<>(); for(JSONObject m:data) have.add(m.toString());
         int added=0;
-        for(int i=0;i<a.length();i++){ JSONObject m=a.optJSONObject(i); if(m!=null && have.add(m.toString())){ data.add(m); added++; } }
+        int skipped=0;
+        for(int i=0;i<a.length();i++){
+            JSONObject m=a.optJSONObject(i); if(m==null) continue;
+            if(!have.add(m.toString())) continue;
+            if(formExists(m.optString("form",""),null)){ skipped++; continue; }
+            data.add(m); added++;
+        }
         save();
-        msg("بازیابی انجام شد ("+added+" مأموریت)");
+        msg("بازیابی انجام شد ("+added+" مأموریت)"+(skipped>0?"؛ "+skipped+" مأموریت با شمارهٔ فرم تکراری نادیده گرفته شد":""));
         home();
     }
 
