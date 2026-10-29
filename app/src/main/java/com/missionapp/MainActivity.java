@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
         recreate();
     }
 
-    public void onCreate(Bundle b){ super.onCreate(b); darkMode=getPreferences(0).getBoolean("darkMode",false); setTheme(darkMode?R.style.AppThemeDark:R.style.AppTheme); applyColors(); load(); home(); }
+    public void onCreate(Bundle b){ super.onCreate(b); darkMode=getPreferences(0).getBoolean("darkMode",false); setTheme(darkMode?R.style.AppThemeDark:R.style.AppTheme); applyColors(); load(); home(); maybeAskRestore(); }
 
     int dp(int v){ return Math.round(v*getResources().getDisplayMetrics().density); }
 
@@ -217,6 +217,15 @@ public class MainActivity extends Activity {
         Button mode=secondary(darkMode?"تغییر به حالت روشن":"تغییر به حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
         Space modeSp=new Space(this); box.addView(modeSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
 
+        Button bk=secondary("پشتیبان‌گیری و بازیابی اطلاعات"); bk.setOnClickListener(v->backupScreen()); box.addView(bk);
+        Space bkSp=new Space(this); box.addView(bkSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
+        if(prefs().getString(BackupManager.PREF_TREE,null)==null && !data.isEmpty()){
+            LinearLayout warn=new LinearLayout(this); warn.setPadding(dp(14),dp(10),dp(14),dp(10)); warn.setBackground(shape(card,14,red)); warn.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            TextView wt=tv("هشدار: اطلاعات مأموریت‌ها فقط داخل برنامه است و با حذف برنامه از بین می‌رود. برای محافظت از آن‌ها، پشتیبان‌گیری را فعال کنید.",14); wt.setTextColor(red); warn.addView(wt);
+            warn.setOnClickListener(v->backupScreen()); box.addView(warn,new LinearLayout.LayoutParams(-1,-2));
+            Space wSp=new Space(this); box.addView(wSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
+        }
+
         Button n=bt("＋  ثبت مأموریت جدید"); n.setOnClickListener(v->{cur=new JSONObject();try{cur.put("expenses",new JSONArray());}catch(Exception e){}edit();}); box.addView(n);
         Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(12)));
 
@@ -315,8 +324,170 @@ public class MainActivity extends Activity {
         sum.setText("جمع قابل پرداخت: "+money(total(cur))+" ریال");
     }
 
-    void save(){try{JSONArray a=new JSONArray();for(JSONObject m:data)a.put(m);getPreferences(0).edit().putString("data",a.toString()).apply();}catch(Exception e){}}
+    void saveLocal(){try{JSONArray a=new JSONArray();for(JSONObject m:data)a.put(m);getPreferences(0).edit().putString("data",a.toString()).apply();}catch(Exception e){}}
+    void save(){ saveLocal(); backupAuto(); }
     void load(){try{JSONArray a=new JSONArray(getPreferences(0).getString("data","[]"));for(int i=0;i<a.length();i++)data.add(a.getJSONObject(i));}catch(Exception e){}}
+    // ---------- Backup / restore (survives uninstall) ----------
+    static final int REQ_TREE=7101, REQ_RESTORE=7102;
+    static final java.util.concurrent.ExecutorService BK=java.util.concurrent.Executors.newSingleThreadExecutor();
+    LinearLayout backupBox;
+
+    SharedPreferences prefs(){ return getPreferences(0); }
+
+    String stamp(){
+        Calendar c=Calendar.getInstance();
+        int[] j=gregorianToJalali(c.get(Calendar.YEAR),c.get(Calendar.MONTH)+1,c.get(Calendar.DAY_OF_MONTH));
+        if(j==null) j=new int[]{c.get(Calendar.YEAR),c.get(Calendar.MONTH)+1,c.get(Calendar.DAY_OF_MONTH)};
+        return String.format(Locale.US,"%04d/%02d/%02d  %02d:%02d",j[0],j[1],j[2],c.get(Calendar.HOUR_OF_DAY),c.get(Calendar.MINUTE));
+    }
+
+    void msg(String s){ Toast.makeText(this,s,Toast.LENGTH_LONG).show(); }
+
+    /** Called from save(): silently rewrites the backup file if a folder was chosen. */
+    void backupAuto(){
+        final SharedPreferences p=prefs(); String t=p.getString(BackupManager.PREF_TREE,null); if(t==null)return;
+        final String json=BackupManager.buildJson(data); if(json==null)return;
+        final Context app=getApplicationContext(); final Uri tree=Uri.parse(t); final String when=stamp();
+        BK.execute(()->{
+            boolean ok=BackupManager.write(app,tree,json);
+            SharedPreferences.Editor e=p.edit().putBoolean(BackupManager.PREF_ERR,!ok);
+            if(ok) e.putString(BackupManager.PREF_LAST,when);
+            e.apply();
+        });
+    }
+
+    void backupNow(){
+        final SharedPreferences p=prefs(); String t=p.getString(BackupManager.PREF_TREE,null);
+        if(t==null){ pickFolder(); return; }
+        final String json=BackupManager.buildJson(data); final Context app=getApplicationContext(); final Uri tree=Uri.parse(t); final String when=stamp();
+        BK.execute(()->{
+            boolean ok=BackupManager.write(app,tree,json);
+            SharedPreferences.Editor e=p.edit().putBoolean(BackupManager.PREF_ERR,!ok);
+            if(ok) e.putString(BackupManager.PREF_LAST,when);
+            e.apply();
+            runOnUiThread(()->{
+                msg(ok?"پشتیبان ذخیره شد":"پشتیبان‌گیری ناموفق بود؛ پوشه را دوباره انتخاب کنید");
+                if(box==backupBox) backupScreen();
+            });
+        });
+    }
+
+    void pickFolder(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        try{ startActivityForResult(i,REQ_TREE); }catch(Exception e){ msg("انتخاب پوشه روی این گوشی ممکن نیست"); }
+    }
+
+    void pickRestoreFile(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT); i.addCategory(Intent.CATEGORY_OPENABLE); i.setType("*/*");
+        try{ startActivityForResult(i,REQ_RESTORE); }catch(Exception e){ msg("انتخاب فایل روی این گوشی ممکن نیست"); }
+    }
+
+    @Override protected void onActivityResult(int req,int res,Intent d){
+        super.onActivityResult(req,res,d);
+        if(res!=RESULT_OK||d==null||d.getData()==null) return;
+        Uri u=d.getData();
+        if(req==REQ_TREE){
+            try{ getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION); }catch(Exception e){ msg("دسترسی دائمی به این پوشه داده نشد؛ پوشهٔ دیگری انتخاب کنید"); return; }
+            prefs().edit().putString(BackupManager.PREF_TREE,u.toString()).putBoolean(BackupManager.PREF_ERR,false).apply();
+            Uri existing=BackupManager.findBackup(this,u);
+            if(existing!=null){
+                JSONArray a=BackupManager.parse(BackupManager.read(this,existing));
+                if(a!=null && a.length()>0){ askRestore(a,true); return; }
+            }
+            backupNow();
+        } else if(req==REQ_RESTORE){
+            JSONArray a=BackupManager.parse(BackupManager.read(this,u));
+            if(a==null){ msg("این فایل، پشتیبان معتبر مأموریت‌ها نیست"); return; }
+            askRestore(a,false);
+        }
+    }
+
+    void applyRestore(JSONArray a,boolean replace){
+        if(replace) data.clear();
+        java.util.HashSet<String> have=new java.util.HashSet<>(); for(JSONObject m:data) have.add(m.toString());
+        int added=0;
+        for(int i=0;i<a.length();i++){ JSONObject m=a.optJSONObject(i); if(m!=null && have.add(m.toString())){ data.add(m); added++; } }
+        save();
+        msg("بازیابی انجام شد ("+added+" مأموریت)");
+        home();
+    }
+
+    void askRestore(final JSONArray a,final boolean fromFolder){
+        String head="در فایل پشتیبان "+a.length()+" مأموریت پیدا شد.";
+        if(data.isEmpty()){
+            String m=head+"\nبازیابی شود؟"+(fromFolder?"\n\nاگر بازیابی نکنید، با اولین ذخیرهٔ مأموریت، پشتیبان قدیمی در این پوشه بازنویسی می‌شود.":"");
+            new AlertDialog.Builder(this).setTitle("بازیابی اطلاعات").setMessage(m)
+                .setPositiveButton("بازیابی",(d,w)->applyRestore(a,true))
+                .setNegativeButton(fromFolder?"نادیده گرفتن":"انصراف",(d,w)->{ if(fromFolder) backupNow(); })
+                .show();
+        } else {
+            String m=head+"\nالان "+data.size()+" مأموریت هم داخل برنامه هست."+(fromFolder?"\n\nاگر «نادیده گرفتن» را بزنید، پشتیبان قدیمی بازنویسی می‌شود.":"");
+            new AlertDialog.Builder(this).setTitle("بازیابی اطلاعات").setMessage(m)
+                .setPositiveButton("افزودن به موارد فعلی",(d,w)->applyRestore(a,false))
+                .setNeutralButton("جایگزین کردن همه",(d,w)->applyRestore(a,true))
+                .setNegativeButton(fromFolder?"نادیده گرفتن":"انصراف",(d,w)->{ if(fromFolder) backupNow(); })
+                .show();
+        }
+    }
+
+    /** On a fresh install (no data yet) offer a one-time restore from a previous backup. */
+    void maybeAskRestore(){
+        SharedPreferences p=prefs();
+        if(!data.isEmpty()||p.getBoolean(BackupManager.PREF_ASKED,false)) return;
+        p.edit().putBoolean(BackupManager.PREF_ASKED,true).apply();
+        new AlertDialog.Builder(this).setTitle("بازیابی اطلاعات قبلی؟")
+            .setMessage("اگر قبلاً از مأموریت‌ها پشتیبان گرفته‌اید (مثلاً قبل از حذف برنامه)، می‌توانید فایل پشتیبان را انتخاب و بازیابی کنید.\n\nبعداً هم از «پشتیبان‌گیری و بازیابی اطلاعات» در صفحهٔ اصلی می‌شود.")
+            .setPositiveButton("انتخاب فایل پشتیبان",(d,w)->pickRestoreFile())
+            .setNegativeButton("شروع بدون اطلاعات",null).show();
+    }
+
+    void confirmDeleteAll(){
+        final boolean hasTree=prefs().getString(BackupManager.PREF_TREE,null)!=null;
+        AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("حذف همهٔ اطلاعات")
+            .setMessage("همهٔ مأموریت‌های داخل برنامه پاک می‌شود."+(hasTree?"\n\n• «فقط اطلاعات برنامه»: فایل پشتیبان در پوشهٔ شما می‌ماند و پشتیبان‌گیری خودکار متوقف می‌شود.\n• «اطلاعات و پشتیبان»: فایل پشتیبان هم حذف می‌شود.":"\n\nاین کار قابل بازگشت نیست."))
+            .setNegativeButton("لغو",null);
+        if(hasTree){
+            b.setPositiveButton("فقط اطلاعات برنامه",(d,w)->{ data.clear(); saveLocal(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply(); msg("اطلاعات برنامه حذف شد؛ فایل پشتیبان باقی ماند"); home(); });
+            b.setNeutralButton("اطلاعات و پشتیبان",(d,w)->{
+                final Uri tree=Uri.parse(prefs().getString(BackupManager.PREF_TREE,"")); final Context app=getApplicationContext();
+                data.clear(); saveLocal(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply();
+                BK.execute(()->BackupManager.deleteBackup(app,tree));
+                msg("اطلاعات و فایل پشتیبان حذف شد"); home();
+            });
+        } else {
+            b.setPositiveButton("حذف",(d,w)->{ data.clear(); saveLocal(); msg("اطلاعات حذف شد"); home(); });
+        }
+        b.show();
+    }
+
+    void backupScreen(){
+        base("پشتیبان‌گیری و بازیابی"); backupBox=box;
+        final SharedPreferences p=prefs();
+        final boolean on=p.getString(BackupManager.PREF_TREE,null)!=null;
+        String last=p.getString(BackupManager.PREF_LAST,"");
+        LinearLayout c=section("وضعیت پشتیبان خودکار");
+        String status;
+        if(!on) status="غیرفعال — اطلاعات فقط داخل برنامه است";
+        else if(p.getBoolean(BackupManager.PREF_ERR,false)) status="آخرین پشتیبان‌گیری ناموفق بود؛ پوشه را دوباره انتخاب کنید";
+        else status="فعال"+(last.isEmpty()?"":"\nآخرین پشتیبان: "+last);
+        TextView st=tv(status,16); st.setTypeface(Typeface.DEFAULT,Typeface.BOLD); st.setTextColor(on&&!p.getBoolean(BackupManager.PREF_ERR,false)?green:red); c.addView(st);
+        TextView info=tv("اطلاعات مأموریت‌ها داخل حافظهٔ خصوصی برنامه ذخیره می‌شود و با حذف برنامه پاک می‌شود. با انتخاب یک پوشه (مثلاً پوشهٔ Documents یا یک پوشهٔ جدید)، بعد از هر ذخیرهٔ مأموریت یک فایل پشتیبان در آن پوشه نوشته می‌شود که با حذف برنامه از بین نمی‌رود.\n\nبعد از نصب دوبارهٔ برنامه، «بازیابی از فایل پشتیبان» را بزنید و همان فایل را انتخاب کنید، یا همان پوشه را دوباره انتخاب کنید.\n\nفایل پشتیبان متن ساده است؛ آن را در جای امنی نگه دارید. اگر گوشی اجازهٔ انتخاب پوشه‌ای را نداد، یک پوشهٔ جدید بسازید.",14);
+        info.setTextColor(muted); info.setPadding(dp(4),dp(10),dp(4),dp(4)); c.addView(info);
+
+        LinearLayout a=section("عملیات");
+        Button main=bt(on?"پشتیبان‌گیری همین حالا":"انتخاب پوشهٔ پشتیبان"); main.setOnClickListener(v->{ if(on) backupNow(); else pickFolder(); }); addBtn(a,main);
+        if(on){ Button ch=secondary("تغییر پوشهٔ پشتیبان"); ch.setOnClickListener(v->pickFolder()); addBtn(a,ch); }
+        Button rs=secondary("بازیابی از فایل پشتیبان"); rs.setOnClickListener(v->pickRestoreFile()); addBtn(a,rs);
+        Button del=secondary("حذف همهٔ اطلاعات…"); del.setTextColor(red); del.setOnClickListener(v->confirmDeleteAll()); addBtn(a,del);
+        Button back=secondary("‹  بازگشت"); back.setOnClickListener(v->home()); box.addView(back);
+    }
+
+    void addBtn(LinearLayout parent,Button b){
+        parent.addView(b,new LinearLayout.LayoutParams(-1,-2));
+        Space sp=new Space(this); parent.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(8)));
+    }
+
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
 
     void attachDatePicker(final EditText target){
