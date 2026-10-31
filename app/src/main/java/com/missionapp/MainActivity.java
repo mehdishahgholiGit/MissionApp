@@ -6,6 +6,7 @@ import android.content.*;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.pdf.PdfDocument;
+import android.database.Cursor;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.text.*;
@@ -266,6 +267,7 @@ public class MainActivity extends Activity {
     String payer(JSONObject m,String key){return m.optString(key,"شخص");}
 
     void home(){
+        cleanOrphanAttachments();
         base("مدیریت مأموریت و هزینه‌ها");
         TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(dp(4),dp(0),dp(4),dp(12)); box.addView(intro);
 
@@ -366,11 +368,11 @@ public class MainActivity extends Activity {
         JSONObject old=(idx>=0&&all!=null)?all.optJSONObject(idx):null;
         LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(10),dp(4),dp(10),dp(4));l.setBackgroundColor(bg);
         final Spinner cat=spinner(cats),ti=spinner(tehranItems); l.addView(field("نوع هزینه",cat));l.addView(field("شرح/مورد تهران",ti));
-        final EditText date=ed("تاریخ"),desc=ed("شرح"),invoice=ed("شماره فاکتور"),amount=ed("مبلغ");
-        attachDatePicker(date); l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("شماره فاکتور",invoice));l.addView(field("مبلغ",amount));
+        final EditText date=ed("تاریخ"),desc=ed("شرح"),amount=ed("مبلغ"); final Spinner inv=spinner(new String[]{"دارد","ندارد"});
+        attachDatePicker(date); l.addView(field("تاریخ",date));l.addView(field("شرح",desc));l.addView(field("فاکتور",inv));l.addView(field("مبلغ",amount));
         if(old!=null){
             cat.setSelection(index(cats,old.optString("category"))); ti.setSelection(index(tehranItems,old.optString("tehranItem")));
-            date.setText(old.optString("date")); desc.setText(old.optString("desc")); invoice.setText(old.optString("invoice"));
+            date.setText(old.optString("date")); desc.setText(old.optString("desc")); inv.setSelection(hasInvoice(old)?0:1);
             amount.setText(moneyText(old.optDouble("amount",0)));
         }
         ti.setVisibility(cat.getSelectedItemPosition()==0?View.VISIBLE:View.GONE);
@@ -379,7 +381,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(idx>=0?"ویرایش هزینه":"افزودن هزینه").setView(sv).setNegativeButton("انصراف",null).setPositiveButton(idx>=0?"ذخیره تغییرات":"ثبت هزینه",(d,w)->{
             try{
                 JSONArray a=cur.optJSONArray("expenses"); if(a==null){a=new JSONArray();cur.put("expenses",a);}
-                JSONObject o=new JSONObject();o.put("category",cat.getSelectedItem().toString());o.put("tehranItem",ti.getSelectedItem().toString());o.put("date",date.getText().toString());o.put("desc",desc.getText().toString());o.put("invoice",invoice.getText().toString());o.put("amount",num(amount));
+                JSONObject o=new JSONObject();o.put("category",cat.getSelectedItem().toString());o.put("tehranItem",ti.getSelectedItem().toString());o.put("date",date.getText().toString());o.put("desc",desc.getText().toString());o.put("hasInvoice",inv.getSelectedItemPosition()==0);o.put("amount",num(amount));
                 if(idx>=0&&idx<a.length()) a.put(idx,o); else a.put(o);
                 render(list,sum);
             }catch(Exception e){toast(e.getMessage());}
@@ -391,7 +393,7 @@ public class MainActivity extends Activity {
         if(a!=null) for(int i=0;i<a.length();i++){
             final int k=i; JSONObject o=a.optJSONObject(i); if(o==null) continue;
             LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(8),dp(6),dp(8),dp(6));r.setBackground(shape(bg,12,border));r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-            TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال",13);t.setTextColor(text);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            TextView t=tv((i+1)+"  "+o.optString("category")+"\n"+o.optString("desc")+"   |   "+money(o.optDouble("amount"))+" ریال   |   فاکتور "+(hasInvoice(o)?"دارد":"ندارد"),13);t.setTextColor(text);t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
             Button edt=secondary("ویرایش");edt.setTextSize(13);edt.setMinHeight(dp(44));edt.setOnClickListener(v->expenseDialog(list,sum,k));
             Button del=secondary("حذف");del.setTextSize(13);del.setTextColor(red);del.setMinHeight(dp(44));
             del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف هزینه").setMessage("این هزینه حذف شود؟").setNegativeButton("انصراف",null).setPositiveButton("حذف",(dd,ww)->{a.remove(k);render(list,sum);}).show());
@@ -465,6 +467,16 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int req,int res,Intent d){
         super.onActivityResult(req,res,d);
+        if(req==REQ_ATTACH){
+            if(res==RESULT_OK&&d!=null){
+                ArrayList<Uri> picked=new ArrayList<>();
+                ClipData cd=d.getClipData();
+                if(cd!=null){ for(int i=0;i<cd.getItemCount();i++){ Uri u=cd.getItemAt(i).getUri(); if(u!=null) picked.add(u); } }
+                else if(d.getData()!=null) picked.add(d.getData());
+                importAttachments(picked);
+            }
+            return;
+        }
         if(res!=RESULT_OK||d==null||d.getData()==null) return;
         Uri u=d.getData();
         if(req==REQ_TREE){
@@ -534,15 +546,15 @@ public class MainActivity extends Activity {
             .setMessage("همهٔ مأموریت‌های داخل برنامه پاک می‌شود."+(hasTree?"\n\n• «فقط اطلاعات برنامه»: فایل پشتیبان در پوشهٔ شما می‌ماند و پشتیبان‌گیری خودکار متوقف می‌شود.\n• «اطلاعات و پشتیبان»: فایل پشتیبان هم حذف می‌شود.":"\n\nاین کار قابل بازگشت نیست."))
             .setNegativeButton("لغو",null);
         if(hasTree){
-            b.setPositiveButton("فقط اطلاعات برنامه",(d,w)->{ data.clear(); saveLocal(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply(); msg("اطلاعات برنامه حذف شد؛ فایل پشتیبان باقی ماند"); home(); });
+            b.setPositiveButton("فقط اطلاعات برنامه",(d,w)->{ data.clear(); saveLocal(); deleteAllAttachmentFiles(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply(); msg("اطلاعات برنامه حذف شد؛ فایل پشتیبان باقی ماند"); home(); });
             b.setNeutralButton("اطلاعات و پشتیبان",(d,w)->{
                 final Uri tree=Uri.parse(prefs().getString(BackupManager.PREF_TREE,"")); final Context app=getApplicationContext();
-                data.clear(); saveLocal(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply();
+                data.clear(); saveLocal(); deleteAllAttachmentFiles(); prefs().edit().remove(BackupManager.PREF_TREE).remove(BackupManager.PREF_LAST).apply();
                 BK.execute(()->BackupManager.deleteBackup(app,tree));
                 msg("اطلاعات و فایل پشتیبان حذف شد"); home();
             });
         } else {
-            b.setPositiveButton("حذف",(d,w)->{ data.clear(); saveLocal(); msg("اطلاعات حذف شد"); home(); });
+            b.setPositiveButton("حذف",(d,w)->{ data.clear(); saveLocal(); deleteAllAttachmentFiles(); msg("اطلاعات حذف شد"); home(); });
         }
         b.show();
     }
@@ -573,6 +585,189 @@ public class MainActivity extends Activity {
         parent.addView(b,new LinearLayout.LayoutParams(-1,-2));
         Space sp=new Space(this); parent.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(8)));
     }
+
+    // ---------- service numbers (several per mission, unique everywhere) ----------
+    ArrayList<String> parseServices(String raw){
+        ArrayList<String> out=new ArrayList<>();
+        for(String t:normDigits(raw).split("[,\\u060C;\\s]+")){
+            t=t.trim(); if(t.isEmpty()) continue;
+            boolean dup=false; for(String o:out) if(o.equalsIgnoreCase(t)){dup=true;break;}
+            if(!dup) out.add(t);
+        }
+        return out;
+    }
+    String joinServices(List<String> l){ StringBuilder b=new StringBuilder(); for(String x:l){ if(b.length()>0) b.append(", "); b.append(x); } return b.toString(); }
+
+    /** Returns an error message if a service number is repeated in the list or used by another mission, else null. */
+    String serviceConflict(String raw,JSONObject except){
+        normDigits(raw);
+        String[] all=normDigits(raw).split("[,\\u060C;\\s]+");
+        HashSet<String> seen=new HashSet<>();
+        for(String t:all){
+            t=t.trim().toLowerCase(Locale.ROOT); if(t.isEmpty()) continue;
+            if(!seen.add(t)) return "شماره سرویس "+t+" را بیش از یک بار وارد کرده‌اید";
+        }
+        for(JSONObject d:data){
+            if(d==except) continue;
+            for(String o:parseServices(d.optString("service",""))){
+                if(seen.contains(o.toLowerCase(Locale.ROOT))) return "شماره سرویس "+o+" قبلاً در مأموریت فرم "+(d.optString("form").isEmpty()?"بدون شماره":d.optString("form"))+" ثبت شده است";
+            }
+        }
+        return null;
+    }
+
+    String ensureUuid(JSONObject m){
+        String u=m.optString("uuid","").trim();
+        if(u.isEmpty()){ u=UUID.randomUUID().toString().toUpperCase(Locale.US); try{m.put("uuid",u);}catch(Exception ignored){} }
+        return u;
+    }
+
+    // ---------- attachments (photos / PDFs) kept inside the app and appended to the PDF ----------
+    static final int REQ_ATTACH=7103;
+    LinearLayout attachList;
+    AlertDialog busyDialog;
+
+    File attachDir(JSONObject m){ return new File(getFilesDir(),"att/"+ensureUuid(m)); }
+
+    void deleteRecursive(File f){
+        if(f==null||!f.exists()) return;
+        if(f.isDirectory()){ File[] c=f.listFiles(); if(c!=null) for(File x:c) deleteRecursive(x); }
+        f.delete();
+    }
+
+    void deleteAllAttachmentFiles(){ deleteRecursive(new File(getFilesDir(),"att")); }
+
+    /** Remove attachment folders that no longer belong to any saved mission (e.g. a discarded draft). */
+    void cleanOrphanAttachments(){
+        try{
+            File root=new File(getFilesDir(),"att"); File[] dirs=root.listFiles(); if(dirs==null) return;
+            HashSet<String> keep=new HashSet<>(); for(JSONObject m:data) keep.add(m.optString("uuid",""));
+            for(File d:dirs) if(!keep.contains(d.getName())) deleteRecursive(d);
+        }catch(Exception ignored){}
+    }
+
+    String fileSizeText(long b){
+        if(b<1024) return b+" B";
+        if(b<1024*1024) return String.format(Locale.US,"%.0f KB",b/1024.0);
+        return String.format(Locale.US,"%.1f MB",b/(1024.0*1024.0));
+    }
+
+    String displayName(Uri u){
+        Cursor c=null;
+        try{
+            c=getContentResolver().query(u,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null);
+            if(c!=null&&c.moveToFirst()){ String n=c.getString(0); if(n!=null&&!n.isEmpty()) return n; }
+        }catch(Exception ignored){} finally{ if(c!=null) c.close(); }
+        String last=u.getLastPathSegment(); return last==null?"file":last;
+    }
+
+    void pickAttachments(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT); i.addCategory(Intent.CATEGORY_OPENABLE); i.setType("*/*");
+        i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"image/*","application/pdf"});
+        i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+        try{ startActivityForResult(i,REQ_ATTACH); }catch(Exception e){ msg("انتخاب فایل روی این گوشی ممکن نیست"); }
+    }
+
+    void showBusy(String text){
+        try{ if(busyDialog!=null&&busyDialog.isShowing()) busyDialog.dismiss(); }catch(Exception ignored){}
+        busyDialog=new AlertDialog.Builder(this).setMessage(text).setCancelable(false).show();
+    }
+    void hideBusy(){ try{ if(busyDialog!=null) busyDialog.dismiss(); }catch(Exception ignored){} busyDialog=null; }
+
+    void importAttachments(final List<Uri> uris){
+        if(uris.isEmpty()||cur==null) return;
+        final JSONObject target=cur; final File dir=attachDir(target); dir.mkdirs();
+        showBusy("در حال افزودن فایل‌ها…");
+        new Thread(()->{
+            final ArrayList<JSONObject> added=new ArrayList<>(); int bad=0; int n=0;
+            for(Uri u:uris){
+                try{
+                    String name=displayName(u); String low=name.toLowerCase(Locale.ROOT);
+                    String mime=getContentResolver().getType(u); if(mime==null) mime="";
+                    boolean pdf=mime.equals("application/pdf")||low.endsWith(".pdf");
+                    boolean img=mime.startsWith("image/")||low.matches(".*\\.(jpe?g|png|webp|gif|bmp|heic|heif)$");
+                    if(!pdf&&!img){ bad++; continue; }
+                    String ext=pdf?".pdf":(low.contains(".")?low.substring(low.lastIndexOf('.')):".jpg");
+                    if(!ext.matches("\\.[a-z0-9]{2,5}")) ext=pdf?".pdf":".jpg";
+                    String stored=System.currentTimeMillis()+"_"+(n++)+ext;
+                    File out=new File(dir,stored);
+                    try(InputStream in=getContentResolver().openInputStream(u); OutputStream os=new FileOutputStream(out)){
+                        if(in==null){ bad++; continue; }
+                        byte[] buf=new byte[16384]; int r; while((r=in.read(buf))>0) os.write(buf,0,r);
+                    }
+                    boolean ok;
+                    if(pdf){
+                        ok=false;
+                        try(android.os.ParcelFileDescriptor fd=android.os.ParcelFileDescriptor.open(out,android.os.ParcelFileDescriptor.MODE_READ_ONLY)){
+                            android.graphics.pdf.PdfRenderer r2=new android.graphics.pdf.PdfRenderer(fd); ok=r2.getPageCount()>0; r2.close();
+                        }catch(Exception e){ ok=false; }
+                    } else {
+                        BitmapFactory.Options o=new BitmapFactory.Options(); o.inJustDecodeBounds=true; BitmapFactory.decodeFile(out.getAbsolutePath(),o);
+                        ok=o.outWidth>0&&o.outHeight>0;
+                    }
+                    if(!ok){ out.delete(); bad++; continue; }
+                    JSONObject a=new JSONObject(); a.put("name",name); a.put("file",stored); a.put("type",pdf?"pdf":"image"); a.put("size",out.length());
+                    added.add(a);
+                }catch(Exception e){ bad++; }
+            }
+            final int badF=bad;
+            runOnUiThread(()->{
+                hideBusy();
+                try{
+                    JSONArray arr=target.optJSONArray("attachments"); if(arr==null){ arr=new JSONArray(); target.put("attachments",arr); }
+                    for(JSONObject a:added) arr.put(a);
+                    if(data.contains(target)) save();
+                }catch(Exception ignored){}
+                renderAttachments();
+                msg(added.size()+" فایل اضافه شد"+(badF>0?"؛ "+badF+" فایل پذیرفته نشد (فقط عکس و PDF سالم)":""));
+            });
+        }).start();
+    }
+
+    void loadThumb(final File f,final ImageView iv){
+        new Thread(()->{
+            try{
+                BitmapFactory.Options o=new BitmapFactory.Options(); o.inJustDecodeBounds=true; BitmapFactory.decodeFile(f.getAbsolutePath(),o);
+                int ss=1; while(o.outWidth/ss>240||o.outHeight/ss>240) ss*=2;
+                o=new BitmapFactory.Options(); o.inSampleSize=ss;
+                final Bitmap b=BitmapFactory.decodeFile(f.getAbsolutePath(),o);
+                if(b!=null) runOnUiThread(()->iv.setImageBitmap(b));
+            }catch(Throwable ignored){}
+        }).start();
+    }
+
+    void renderAttachments(){
+        if(attachList==null||cur==null) return;
+        attachList.removeAllViews();
+        final JSONArray arr=cur.optJSONArray("attachments");
+        if(arr==null||arr.length()==0){
+            TextView e=tv("هنوز فایلی اضافه نشده است.",14); e.setTextColor(muted); attachList.addView(e); return;
+        }
+        File dir=attachDir(cur);
+        for(int i=0;i<arr.length();i++){
+            final int k=i; final JSONObject a=arr.optJSONObject(i); if(a==null) continue;
+            final File f=new File(dir,a.optString("file"));
+            LinearLayout r=new LinearLayout(this); r.setOrientation(LinearLayout.HORIZONTAL); r.setGravity(Gravity.CENTER_VERTICAL);
+            r.setPadding(dp(8),dp(6),dp(8),dp(6)); r.setBackground(shape(bg,12,border)); r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            View thumb;
+            if("image".equals(a.optString("type"))){
+                ImageView iv=new ImageView(this); iv.setScaleType(ImageView.ScaleType.CENTER_CROP); iv.setBackground(shape(card,8,border));
+                if(f.exists()) loadThumb(f,iv); thumb=iv;
+            } else {
+                TextView pt=tv("PDF",14); pt.setGravity(Gravity.CENTER); pt.setTypeface(Typeface.DEFAULT,Typeface.BOLD); pt.setTextColor(red); pt.setBackground(shape(card,8,border)); thumb=pt;
+            }
+            TextView t=tv((i+1)+"  "+a.optString("name")+"\n"+fileSizeText(a.optLong("size"))+(f.exists()?"":"  (فایل پیدا نشد)"),13); t.setTextColor(text); t.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            Button del=secondary("حذف"); del.setTextSize(13); del.setTextColor(red); del.setMinHeight(dp(44));
+            del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف فایل").setMessage("این فایل از مأموریت حذف شود؟").setNegativeButton("انصراف",null).setPositiveButton("حذف",(dd,ww)->{
+                arr.remove(k); f.delete(); if(data.contains(cur)) save(); renderAttachments();
+            }).show());
+            LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(dp(56),dp(56)); tp.setMargins(0,0,dp(8),0);
+            r.addView(thumb,tp); r.addView(t,new LinearLayout.LayoutParams(0,-2,1)); r.addView(del,new LinearLayout.LayoutParams(dp(64),dp(48)));
+            attachList.addView(r); Space sp=new Space(this); attachList.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(6)));
+        }
+    }
+
+    boolean hasInvoice(JSONObject o){ return o.has("hasInvoice")?o.optBoolean("hasInvoice"):!o.optString("invoice","").trim().isEmpty(); }
 
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
 

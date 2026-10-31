@@ -43,66 +43,175 @@ public class PdfGenerator {
 
     // ---------------------------------------------------------------- entry point
 
-    public static void generateAndShare(Activity activity, JSONObject m) {
-        try {
-            JSONObject spec = loadSpec(activity);
-            Bitmap logo1 = loadAsset(activity, "form/logo1.jpg");
-            Bitmap logo2 = loadAsset(activity, "form/logo2.jpg");
-            String uuid = getOrCreateUuid(m);
-            String today = todayJalali();
-            JSONArray pages = spec.getJSONArray("pages");
-
-            PdfDocument doc = new PdfDocument();
-            PdfDocument.Page p1 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 1).create());
-            drawPage1(p1.getCanvas(), pages.getJSONObject(0), m, logo1, uuid, today);
-            doc.finishPage(p1);
-
-            PdfDocument.Page p2 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 2).create());
-            drawPage2(p2.getCanvas(), pages.getJSONObject(1), m, logo2, uuid, today);
-            doc.finishPage(p2);
-
-            PdfDocument.Page p3 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 3).create());
-            drawPage3(p3.getCanvas(), pages.getJSONObject(2), m, uuid, today);
-            doc.finishPage(p3);
-
-            String formNo = m.optString("form", "").trim().replaceAll("[^\\p{L}\\p{N}_-]", "_");
-            if (formNo.isEmpty()) formNo = "بدون_شماره";
-            String fn = "M" + formNo + ".pdf";
-            Uri u;
-            if (Build.VERSION.SDK_INT >= 29) {
-                ContentValues v = new ContentValues();
-                v.put(MediaStore.Downloads.DISPLAY_NAME, fn);
-                v.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
-                v.put(MediaStore.Downloads.IS_PENDING, 1);
-                u = activity.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
-                if (u != null) {
-                    OutputStream o = activity.getContentResolver().openOutputStream(u);
-                    if (o != null) { doc.writeTo(o); o.close(); }
-                    v.clear();
-                    v.put(MediaStore.Downloads.IS_PENDING, 0);
-                    activity.getContentResolver().update(u, v, null, null);
-                }
-            } else {
-                File f = new File(activity.getExternalFilesDir(null), fn);
-                OutputStream o = new FileOutputStream(f);
-                doc.writeTo(o);
-                o.close();
-                u = Uri.fromFile(f);
+    public static void generateAndShare(final Activity activity, final JSONObject m) {
+        final android.app.AlertDialog busy = new android.app.AlertDialog.Builder(activity)
+                .setMessage("در حال ساخت PDF…").setCancelable(false).show();
+        new Thread(() -> {
+            try {
+                final Uri u = build(activity, m);
+                activity.runOnUiThread(() -> {
+                    try { busy.dismiss(); } catch (Exception ignored) {}
+                    if (u != null) {
+                        Intent intent = new Intent(Intent.ACTION_SEND);
+                        intent.setType("application/pdf");
+                        intent.putExtra(Intent.EXTRA_STREAM, u);
+                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        activity.startActivity(Intent.createChooser(intent, "ارسال / ذخیره PDF"));
+                    }
+                    if (skippedAttachments > 0)
+                        Toast.makeText(activity, skippedAttachments + " فایل پیوست قابل افزودن نبود و رد شد", Toast.LENGTH_LONG).show();
+                });
+            } catch (final Throwable e) {
+                activity.runOnUiThread(() -> {
+                    try { busy.dismiss(); } catch (Exception ignored) {}
+                    Toast.makeText(activity, "خطا در ساخت PDF: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
-            doc.close();
-            if (logo1 != null) logo1.recycle();
-            if (logo2 != null) logo2.recycle();
+        }).start();
+    }
 
+    private static volatile int skippedAttachments = 0;
+
+    /** Builds the PDF (form pages + attachments) and returns the Uri of the saved file. */
+    private static Uri build(Activity activity, JSONObject m) throws Exception {
+        skippedAttachments = 0;
+        JSONObject spec = loadSpec(activity);
+        Bitmap logo1 = loadAsset(activity, "form/logo1.jpg");
+        Bitmap logo2 = loadAsset(activity, "form/logo2.jpg");
+        String uuid = getOrCreateUuid(m);
+        String today = todayJalali();
+        JSONArray pages = spec.getJSONArray("pages");
+
+        PdfDocument doc = new PdfDocument();
+        PdfDocument.Page p1 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 1).create());
+        drawPage1(p1.getCanvas(), pages.getJSONObject(0), m, logo1, uuid, today);
+        doc.finishPage(p1);
+
+        PdfDocument.Page p2 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 2).create());
+        drawPage2(p2.getCanvas(), pages.getJSONObject(1), m, logo2, uuid, today);
+        doc.finishPage(p2);
+
+        PdfDocument.Page p3 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 3).create());
+        drawPage3(p3.getCanvas(), pages.getJSONObject(2), m, uuid, today);
+        doc.finishPage(p3);
+
+        appendAttachments(doc, activity, m, uuid, 4);
+
+        String formNo = m.optString("form", "").trim().replaceAll("[^\\p{L}\\p{N}_-]", "_");
+        if (formNo.isEmpty()) formNo = "بدون_شماره";
+        String fn = "M" + formNo + ".pdf";
+        Uri u;
+        if (Build.VERSION.SDK_INT >= 29) {
+            ContentValues v = new ContentValues();
+            v.put(MediaStore.Downloads.DISPLAY_NAME, fn);
+            v.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
+            v.put(MediaStore.Downloads.IS_PENDING, 1);
+            u = activity.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
             if (u != null) {
-                Intent intent = new Intent(Intent.ACTION_SEND);
-                intent.setType("application/pdf");
-                intent.putExtra(Intent.EXTRA_STREAM, u);
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                activity.startActivity(Intent.createChooser(intent, "ارسال / ذخیره PDF"));
+                OutputStream o = activity.getContentResolver().openOutputStream(u);
+                if (o != null) { doc.writeTo(o); o.close(); }
+                v.clear();
+                v.put(MediaStore.Downloads.IS_PENDING, 0);
+                activity.getContentResolver().update(u, v, null, null);
             }
-        } catch (Exception e) {
-            Toast.makeText(activity, "خطا در ساخت PDF: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        } else {
+            File f = new File(activity.getExternalFilesDir(null), fn);
+            OutputStream o = new FileOutputStream(f);
+            doc.writeTo(o);
+            o.close();
+            u = Uri.fromFile(f);
         }
+        doc.close();
+        if (logo1 != null) logo1.recycle();
+        if (logo2 != null) logo2.recycle();
+        return u;
+    }
+
+    // ---------------------------------------------------------------- attachments appended after the form pages
+
+    private static void appendAttachments(PdfDocument doc, Activity activity, JSONObject m, String uuid, int firstPageNo) {
+        JSONArray arr = m.optJSONArray("attachments");
+        if (arr == null) return;
+        File dir = new File(activity.getFilesDir(), "att/" + uuid);
+        int pageNo = firstPageNo;
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject a = arr.optJSONObject(i);
+            if (a == null) continue;
+            File f = new File(dir, a.optString("file"));
+            if (!f.exists()) { skippedAttachments++; continue; }
+            try {
+                if ("pdf".equals(a.optString("type"))) pageNo = appendPdfFile(doc, f, pageNo);
+                else pageNo = appendImageFile(doc, f, pageNo);
+            } catch (Throwable e) {
+                skippedAttachments++;
+            }
+        }
+    }
+
+    /** One page per image, Letter size (landscape if the photo is wider than tall), scaled to fit with a small margin. */
+    private static int appendImageFile(PdfDocument doc, File f, int pageNo) throws Exception {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(f.getAbsolutePath(), o);
+        if (o.outWidth <= 0 || o.outHeight <= 0) throw new Exception("bad image");
+        int ss = 1;
+        while (o.outWidth / ss > 2600 || o.outHeight / ss > 2600) ss *= 2;
+        BitmapFactory.Options o2 = new BitmapFactory.Options();
+        o2.inSampleSize = ss;
+        Bitmap bmp = BitmapFactory.decodeFile(f.getAbsolutePath(), o2);
+        if (bmp == null) throw new Exception("decode failed");
+        int rot = 0;
+        try {
+            int ori = new android.media.ExifInterface(f.getAbsolutePath()).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1);
+            if (ori == 6) rot = 90; else if (ori == 3) rot = 180; else if (ori == 8) rot = 270;
+        } catch (Exception ignored) {}
+        if (rot != 0) {
+            Matrix mx = new Matrix();
+            mx.postRotate(rot);
+            Bitmap r = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), mx, true);
+            if (r != bmp) { bmp.recycle(); bmp = r; }
+        }
+        float bw = bmp.getWidth(), bh = bmp.getHeight();
+        boolean land = bw > bh;
+        int pw = land ? (int) H : (int) W, ph = land ? (int) W : (int) H;
+        PdfDocument.Page pg = doc.startPage(new PdfDocument.PageInfo.Builder(pw, ph, pageNo).create());
+        Canvas c = pg.getCanvas();
+        c.drawColor(Color.WHITE);
+        float margin = 18f;
+        float sc = Math.min((pw - 2 * margin) / bw, (ph - 2 * margin) / bh);
+        float dw = bw * sc, dh = bh * sc;
+        float x = (pw - dw) / 2f, y = (ph - dh) / 2f;
+        c.drawBitmap(bmp, null, new RectF(x, y, x + dw, y + dh), new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
+        doc.finishPage(pg);
+        bmp.recycle();
+        return pageNo + 1;
+    }
+
+    /** Every page of an attached PDF is rendered and added with its original page size. */
+    private static int appendPdfFile(PdfDocument doc, File f, int pageNo) throws Exception {
+        android.os.ParcelFileDescriptor fd = android.os.ParcelFileDescriptor.open(f, android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+        android.graphics.pdf.PdfRenderer r = new android.graphics.pdf.PdfRenderer(fd);
+        try {
+            int n = r.getPageCount();
+            for (int i = 0; i < n; i++) {
+                android.graphics.pdf.PdfRenderer.Page src = r.openPage(i);
+                int pw = Math.max(1, src.getWidth()), ph = Math.max(1, src.getHeight());   // points
+                float scale = Math.max(1f, Math.min(2.5f, 1800f / Math.max(pw, ph)));
+                Bitmap bmp = Bitmap.createBitmap(Math.round(pw * scale), Math.round(ph * scale), Bitmap.Config.ARGB_8888);
+                bmp.eraseColor(Color.WHITE);
+                src.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT);
+                src.close();
+                PdfDocument.Page pg = doc.startPage(new PdfDocument.PageInfo.Builder(pw, ph, pageNo).create());
+                pg.getCanvas().drawBitmap(bmp, null, new RectF(0, 0, pw, ph), new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
+                doc.finishPage(pg);
+                bmp.recycle();
+                pageNo++;
+            }
+        } finally {
+            r.close();
+            fd.close();
+        }
+        return pageNo;
     }
 
     // ---------------------------------------------------------------- loading helpers
@@ -343,13 +452,24 @@ public class PdfGenerator {
         return words(n / 1000000000) + " میلیارد" + (n % 1000000000 > 0 ? " و " + words(n % 1000000000) : "");
     }
 
+    private static String joinServicesForForm(String raw) {
+        StringBuilder b = new StringBuilder();
+        for (String t : raw.split("[,\\u060C;\\s]+")) {
+            t = t.trim();
+            if (t.isEmpty()) continue;
+            if (b.length() > 0) b.append("-");
+            b.append(t);
+        }
+        return b.toString();
+    }
+
     private static boolean has(String s) { return s != null && !s.trim().isEmpty(); }
 
     // ---------------------------------------------------------------- page 1: mission form
 
     private static void drawPage1(Canvas c, JSONObject page, JSONObject m, Bitmap logo, String uuid, String today) throws Exception {
         String formNo = m.optString("form", "").trim();
-        String service = m.optString("service").trim();
+        String service = joinServicesForForm(m.optString("service"));
         String start = shownDate(m.optString("start")), end = shownDate(m.optString("end"));
         String person = m.optString("person").trim(), subject = m.optString("subject").trim();
         String device = m.optString("device").trim(), dest = m.optString("destination").trim();
@@ -547,7 +667,8 @@ public class PdfGenerator {
                 JSONObject it = l.get(j);
                 String desc = it.optString("desc");
                 if (desc.isEmpty()) desc = it.optString("tehranItem");
-                String[] vals = {shownDate(it.optString("date")), desc, it.optString("invoice"), "ريال " + moneyInt(it.optDouble("amount"))};
+                boolean hasInv = it.has("hasInvoice") ? it.optBoolean("hasInvoice") : !it.optString("invoice", "").trim().isEmpty();
+                String[] vals = {shownDate(it.optString("date")), desc, hasInv ? "دارد" : "ندارد", "ريال " + moneyInt(it.optDouble("amount"))};
                 float top = rowTop + j * ROW_H;
                 float base = top + ROW_H / 2f + 3.4f;
                 for (int k = 0; k < 4; k++) drawInCell(c, vals[k], cols[k][0], cols[k][1], base, 9.9f, 0, Color.BLACK);
