@@ -159,7 +159,10 @@ public class MainActivity extends Activity {
         r.addView(b,bp);
     }
 
+    boolean atHome=false, inWizard=false;
+
     void base(String title){
+        atHome=false;
         box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(12),dp(12),dp(12),dp(12));
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
@@ -269,6 +272,7 @@ public class MainActivity extends Activity {
     void home(){
         cleanOrphanAttachments();
         base("مدیریت مأموریت و هزینه‌ها");
+        atHome=true; inWizard=false;
         TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(dp(4),dp(0),dp(4),dp(12)); box.addView(intro);
 
         Button mode=secondary(darkMode?"تغییر به حالت روشن":"تغییر به حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
@@ -282,6 +286,9 @@ public class MainActivity extends Activity {
             warn.setOnClickListener(v->backupScreen()); box.addView(warn,new LinearLayout.LayoutParams(-1,-2));
             Space wSp=new Space(this); box.addView(wSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
         }
+
+        Button dash=secondary("داشبورد: مجموع روزها، تعطیلی‌ها و هزینه‌ها"); dash.setOnClickListener(v->dashboardScreen()); box.addView(dash);
+        Space dashSp=new Space(this); box.addView(dashSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
 
         Button n=bt("＋  ثبت مأموریت جدید"); n.setOnClickListener(v->{cur=new JSONObject();try{cur.put("expenses",new JSONArray());}catch(Exception e){}edit();}); box.addView(n);
         Space sp=new Space(this); box.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(12)));
@@ -409,6 +416,159 @@ public class MainActivity extends Activity {
     void saveLocal(){try{JSONArray a=new JSONArray();for(JSONObject m:data)a.put(m);getPreferences(0).edit().putString("data",a.toString()).apply();}catch(Exception e){}}
     void save(){ saveLocal(); backupAuto(); }
     void load(){try{JSONArray a=new JSONArray(getPreferences(0).getString("data","[]"));for(int i=0;i<a.length();i++)data.add(a.getJSONObject(i));}catch(Exception e){}}
+    // ---------- dashboard: totals of days, holidays, costs and mission pay ----------
+    static final String[] MONTHS={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};
+
+    /** Jalali y/m/d of a stored date (yyyy/MM/dd or dd/MM/yyyy); null if it cannot be read. */
+    int[] ymd(String raw){
+        try{
+            String[] p=normDigits(raw).trim().replace("-","/").split("/");
+            if(p.length!=3) return null;
+            int a=Integer.parseInt(p[0].trim()),b=Integer.parseInt(p[1].trim()),c=Integer.parseInt(p[2].trim());
+            int y,m,d;
+            if(p[0].trim().length()==4){y=a;m=b;d=c;} else if(p[2].trim().length()==4){y=c;m=b;d=a;} else return null;
+            if(m<1||m>12) return null;
+            return new int[]{y,m,d};
+        }catch(Exception e){ return null; }
+    }
+
+    int[] missionDate(JSONObject m){ int[] d=ymd(m.optString("start","")); return d!=null?d:ymd(m.optString("end","")); }
+
+    LinearLayout statCard(String label,String value,int valueColor){
+        LinearLayout c=new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setPadding(dp(14),dp(12),dp(14),dp(12));
+        c.setBackground(shape(card,16,border)); c.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        TextView l=tv(label,13); l.setTextColor(muted);
+        TextView v=tv(value,18); v.setTypeface(Typeface.DEFAULT,Typeface.BOLD); v.setTextColor(valueColor);
+        c.addView(l); c.addView(v); return c;
+    }
+
+    void addStatRow(LinearLayout parent,View... cards){
+        LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        for(View c:cards){ LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1); lp.setMargins(dp(4),dp(4),dp(4),dp(4)); row.addView(c,lp); }
+        parent.addView(row,new LinearLayout.LayoutParams(-1,-2));
+    }
+
+    void dashboardScreen(){
+        base("داشبورد");
+        Button topBack=secondary("‹  بازگشت به صفحهٔ اصلی"); topBack.setOnClickListener(v->home()); box.addView(topBack);
+        Space topSp=new Space(this); box.addView(topSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
+        TreeSet<Integer> years=new TreeSet<>(java.util.Collections.reverseOrder());
+        LinkedHashSet<String> persons=new LinkedHashSet<>();
+        for(JSONObject m:data){ int[] d=missionDate(m); if(d!=null) years.add(d[0]); String pn=m.optString("person","").trim(); if(!pn.isEmpty()) persons.add(pn); }
+        final ArrayList<String> yearOpts=new ArrayList<>(); yearOpts.add("همه سال‌ها"); for(int y:years) yearOpts.add(String.valueOf(y));
+        final ArrayList<String> monthOpts=new ArrayList<>(); monthOpts.add("همه ماه‌ها"); for(String mn:MONTHS) monthOpts.add(mn);
+        final ArrayList<String> personOpts=new ArrayList<>(); personOpts.add("همه"); personOpts.addAll(persons);
+
+        LinearLayout f=section("بازهٔ نمایش");
+        final Spinner ysp=spinner(yearOpts.toArray(new String[0])), msp=spinner(monthOpts.toArray(new String[0])), psp=spinner(personOpts.toArray(new String[0]));
+        f.addView(field("سال",ysp)); f.addView(field("ماه",msp));
+        if(persons.size()>1) f.addView(field("کارشناس",psp));
+        TextView note=tv("بازه بر اساس تاریخ شروع مأموریت است. مأموریت‌های بدون تاریخ فقط در «همه سال‌ها» حساب می‌شوند.",12); note.setTextColor(muted); note.setPadding(dp(4),dp(6),dp(4),0); f.addView(note);
+
+        final LinearLayout out=new LinearLayout(this); out.setOrientation(LinearLayout.VERTICAL);
+        box.addView(out,new LinearLayout.LayoutParams(-1,-2));
+        Space bs=new Space(this); box.addView(bs,new LinearLayout.LayoutParams(dp(1),dp(8)));
+        Button back=secondary("‹  بازگشت"); back.setOnClickListener(v->home()); box.addView(back);
+
+        android.widget.AdapterView.OnItemSelectedListener l=new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
+                String y=ysp.getSelectedItemPosition()==0?null:yearOpts.get(ysp.getSelectedItemPosition());
+                String pn=persons.size()>1&&psp.getSelectedItemPosition()>0?personOpts.get(psp.getSelectedItemPosition()):null;
+                renderDashboard(out,y,msp.getSelectedItemPosition(),pn);
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+        };
+        ysp.setOnItemSelectedListener(l); msp.setOnItemSelectedListener(l); psp.setOnItemSelectedListener(l);
+        renderDashboard(out,null,0,null);
+    }
+
+    /** yearStr == null: all years; month 0: all months; person == null: everyone. */
+    void renderDashboard(LinearLayout out,String yearStr,int month,String person){
+        out.removeAllViews();
+        ArrayList<JSONObject> sel=new ArrayList<>();
+        for(JSONObject m:data){
+            if(person!=null&&!person.equals(m.optString("person","").trim())) continue;
+            int[] d=missionDate(m);
+            if(yearStr!=null||month>0){
+                if(d==null) continue;
+                if(yearStr!=null&&d[0]!=Integer.parseInt(yearStr)) continue;
+                if(month>0&&d[1]!=month) continue;
+            }
+            sel.add(m);
+        }
+        if(sel.isEmpty()){
+            LinearLayout e=new LinearLayout(this); e.setGravity(Gravity.CENTER); e.setPadding(dp(20),dp(30),dp(20),dp(30)); e.setBackground(shape(card,18,border));
+            TextView t=tv("در این بازه مأموریتی ثبت نشده است.",15); t.setTextColor(muted); t.setGravity(Gravity.CENTER); e.addView(t);
+            out.addView(e); return;
+        }
+        double days=0,hol=0,pay=0,hotel=0,air=0,cancel=0,expAll=0,mine=0,tot=0;
+        double[] catSum=new double[cats.length];
+        for(JSONObject m:sel){
+            days+=m.optDouble("days",1); hol+=m.optDouble("holiday",0); pay+=missionPay(m);
+            hotel+=m.optDouble("hotel",0); air+=m.optDouble("ticketGo",0)+m.optDouble("ticketBack",0); cancel+=m.optDouble("cancelGo",0)+m.optDouble("cancelBack",0);
+            double ex=expenseSum(m,null); expAll+=ex;
+            mine+=reimbursable(m,"hotelPayer","hotel")+reimbursable(m,"goPayer","ticketGo")+reimbursable(m,"backPayer","ticketBack")+reimbursable(m,"cancelGoPayer","cancelGo")+reimbursable(m,"cancelBackPayer","cancelBack")+ex;
+            tot+=total(m);
+            for(int i=0;i<cats.length;i++) catSum[i]+=expenseSum(m,cats[i]);
+        }
+        double allCost=hotel+air+cancel+expAll;
+
+        LinearLayout g=new LinearLayout(this); g.setOrientation(LinearLayout.VERTICAL);
+        addStatRow(g,statCard("تعداد مأموریت",String.valueOf(sel.size()),text),statCard("مجموع روزهای مأموریت",plainNumber(days)+" روز",text));
+        addStatRow(g,statCard("مجموع روزهای تعطیل",plainNumber(hol)+" روز",text),statCard("حق مأموریت (ریال)",money(pay),green));
+        addStatRow(g,statCard("مجموع هزینه‌ها (ریال)",money(allCost),text));
+        addStatRow(g,statCard("جمع کل قابل پرداخت (ریال)\nحق مأموریت + هزینه‌های پرداخت‌شده توسط خودم",money(tot),green));
+        out.addView(g,new LinearLayout.LayoutParams(-1,-2));
+
+        Space sp=new Space(this); out.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(6)));
+        LinearLayout br=section("ریز هزینه‌ها (ریال)");
+        String[][] rows={{"هتل",money(hotel)},{"بلیط هواپیما",money(air)},{"کنسلی بلیط",money(cancel)}};
+        for(String[] r:rows) br.addView(dashLine(r[0],r[1]));
+        for(int i=0;i<cats.length;i++) if(catSum[i]>0) br.addView(dashLine(cats[i],money(catSum[i])));
+        br.addView(dashLine("پرداخت‌شده توسط خودم (قابل بازپرداخت)",money(mine)));
+        br.addView(dashLine("پرداخت‌شده توسط شرکت",money(Math.max(0,allCost-mine))));
+
+        // chart: per month of the chosen year, or per year when all years are shown
+        if(month==0){
+            LinkedHashMap<String,Double> buckets=new LinkedHashMap<>();
+            if(yearStr!=null){ for(int i=0;i<12;i++) buckets.put(MONTHS[i],0.0); }
+            else { TreeSet<Integer> ys=new TreeSet<>(); for(JSONObject m:sel){ int[] d=missionDate(m); if(d!=null) ys.add(d[0]); } for(int y:ys) buckets.put(String.valueOf(y),0.0); }
+            for(JSONObject m:sel){
+                int[] d=missionDate(m); if(d==null) continue;
+                String k=yearStr!=null?MONTHS[d[1]-1]:String.valueOf(d[0]);
+                if(buckets.containsKey(k)) buckets.put(k,buckets.get(k)+total(m));
+            }
+            if(buckets.size()>1||(buckets.size()==1&&yearStr!=null)){
+                Space sp2=new Space(this); out.addView(sp2,new LinearLayout.LayoutParams(dp(1),dp(6)));
+                LinearLayout ch=section(yearStr!=null?"جمع کل قابل پرداخت در ماه‌های سال "+yearStr:"جمع کل قابل پرداخت در هر سال");
+                double max=0; for(double v:buckets.values()) max=Math.max(max,v);
+                LinearLayout bars=new LinearLayout(this); bars.setOrientation(LinearLayout.HORIZONTAL); bars.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); bars.setGravity(Gravity.BOTTOM);
+                int bi=0;
+                for(java.util.Map.Entry<String,Double> en:buckets.entrySet()){
+                    bi++;
+                    final String label=en.getKey(); final double v=en.getValue();
+                    LinearLayout col=new LinearLayout(this); col.setOrientation(LinearLayout.VERTICAL); col.setGravity(Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+                    View bar=new View(this); bar.setBackground(shape(v>0?green:border,4,v>0?green:border));
+                    int h=max<=0?dp(2):Math.max(dp(2),(int)Math.round(dp(110)*v/max));
+                    col.addView(bar,new LinearLayout.LayoutParams(dp(14),h));
+                    TextView lb=tv(yearStr!=null?String.valueOf(bi):label,10); lb.setGravity(Gravity.CENTER); lb.setTextColor(muted); lb.setSingleLine(true);
+                    col.addView(lb,new LinearLayout.LayoutParams(-2,-2));
+                    col.setOnClickListener(x->msg(label+": "+money(v)+" ریال"));
+                    bars.addView(col,new LinearLayout.LayoutParams(0,dp(134),1));
+                }
+                ch.addView(bars,new LinearLayout.LayoutParams(-1,-2));
+                TextView hint=tv(yearStr!=null?"شمارهٔ زیر هر ستون، شمارهٔ ماه است. برای دیدن مبلغ، روی ستون بزنید.":"برای دیدن مبلغ هر ستون، روی آن بزنید.",12); hint.setTextColor(muted); hint.setPadding(dp(4),dp(6),dp(4),0); ch.addView(hint);
+            }
+        }
+    }
+
+    View dashLine(String label,String value){
+        LinearLayout r=new LinearLayout(this); r.setOrientation(LinearLayout.HORIZONTAL); r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); r.setPadding(dp(4),dp(6),dp(4),dp(6));
+        TextView a=tv(label,14); a.setTextColor(muted); TextView b=tv(value,15); b.setTypeface(Typeface.DEFAULT,Typeface.BOLD); b.setGravity(Gravity.LEFT);
+        r.addView(a,new LinearLayout.LayoutParams(0,-2,1)); r.addView(b,new LinearLayout.LayoutParams(-2,-2));
+        return r;
+    }
+
     // ---------- Backup / restore (survives uninstall) ----------
     static final int REQ_TREE=7101, REQ_RESTORE=7102;
     static final java.util.concurrent.ExecutorService BK=java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -768,6 +928,17 @@ public class MainActivity extends Activity {
     }
 
     boolean hasInvoice(JSONObject o){ return o.has("hasInvoice")?o.optBoolean("hasInvoice"):!o.optString("invoice","").trim().isEmpty(); }
+
+    /** System back: sub-screens go back to the home page instead of closing the app. */
+    @Override public void onBackPressed(){
+        if(atHome){ super.onBackPressed(); return; }
+        if(inWizard){
+            new AlertDialog.Builder(this).setTitle("بازگشت به صفحهٔ اصلی").setMessage("اطلاعاتی که ثبت نهایی نشده از بین می‌رود. بازگردید؟")
+                .setNegativeButton("ماندن",null).setPositiveButton("بازگشت",(d,w)->home()).show();
+            return;
+        }
+        home();
+    }
 
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
 
