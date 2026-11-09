@@ -159,7 +159,10 @@ public class MainActivity extends Activity {
         r.addView(b,bp);
     }
 
+    boolean atHome=false, inWizard=false;
+
     void base(String title){
+        atHome=false;
         box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(12),dp(12),dp(12),dp(12));
         box.setBackgroundColor(bg); box.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         scrollRoot=new ScrollView(this); scrollRoot.setFillViewport(true); scrollRoot.setBackgroundColor(bg); scrollRoot.addView(box);
@@ -269,6 +272,7 @@ public class MainActivity extends Activity {
     void home(){
         cleanOrphanAttachments();
         base("مدیریت مأموریت و هزینه‌ها");
+        atHome=true; inWizard=false;
         TextView intro=tv("فرم مأموریت، محاسبات و روکش سند حسابداری",14); intro.setTextColor(muted); intro.setPadding(dp(4),dp(0),dp(4),dp(12)); box.addView(intro);
 
         Button mode=secondary(darkMode?"تغییر به حالت روشن":"تغییر به حالت تاریک"); mode.setOnClickListener(v->toggleDarkMode()); box.addView(mode);
@@ -446,6 +450,8 @@ public class MainActivity extends Activity {
 
     void dashboardScreen(){
         base("داشبورد");
+        Button topBack=secondary("‹  بازگشت به صفحهٔ اصلی"); topBack.setOnClickListener(v->home()); box.addView(topBack);
+        Space topSp=new Space(this); box.addView(topSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
         TreeSet<Integer> years=new TreeSet<>(java.util.Collections.reverseOrder());
         LinkedHashSet<String> persons=new LinkedHashSet<>();
         for(JSONObject m:data){ int[] d=missionDate(m); if(d!=null) years.add(d[0]); String pn=m.optString("person","").trim(); if(!pn.isEmpty()) persons.add(pn); }
@@ -922,6 +928,17 @@ public class MainActivity extends Activity {
     }
 
     boolean hasInvoice(JSONObject o){ return o.has("hasInvoice")?o.optBoolean("hasInvoice"):!o.optString("invoice","").trim().isEmpty(); }
+
+    /** System back: sub-screens go back to the home page instead of closing the app. */
+    @Override public void onBackPressed(){
+        if(atHome){ super.onBackPressed(); return; }
+        if(inWizard){
+            new AlertDialog.Builder(this).setTitle("بازگشت به صفحهٔ اصلی").setMessage("اطلاعاتی که ثبت نهایی نشده از بین می‌رود. بازگردید؟")
+                .setNegativeButton("ماندن",null).setPositiveButton("بازگشت",(d,w)->home()).show();
+            return;
+        }
+        home();
+    }
 
     void toast(String s){Toast.makeText(this,"خطا: "+(s==null?"اطلاعات نامعتبر":s),Toast.LENGTH_LONG).show();}
 

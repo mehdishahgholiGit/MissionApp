@@ -30,6 +30,7 @@ public class WizardActivity extends MainActivity {
         form=null;
         attachList=null;
         ensureUuid(cur);
+        inWizard=true;
         buildWizard();
     }
 
