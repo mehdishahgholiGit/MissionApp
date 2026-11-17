@@ -684,6 +684,83 @@ public class PdfGenerator {
         return y + shift;
     }
 
+
+    // ---------------------------------------------------------------- fitting values between their neighbours (page 3)
+
+    /** Right edge of the nearest word on the same line that lies to the left of {@code w}. */
+    private static float leftLimit(JSONArray words, JSONObject w) throws Exception {
+        float x0 = (float) w.getDouble("x0"), b = (float) w.getDouble("b");
+        float lim = 14f;
+        for (int i = 0; i < words.length(); i++) {
+            JSONObject o = words.getJSONObject(i);
+            if (o == w || o.has("g") || o.optString("t", "").trim().isEmpty()) continue;
+            if (Math.abs(o.getDouble("b") - b) > 3.5) continue;
+            float ox1 = (float) o.getDouble("x1");
+            if (ox1 <= x0 + 0.5f && ox1 > lim) lim = ox1;
+        }
+        return lim;
+    }
+
+    /** Left edge of the nearest word on the same line that lies to the right of {@code w}. */
+    private static float rightLimit(JSONArray words, JSONObject w) throws Exception {
+        float x1 = (float) w.getDouble("x1"), b = (float) w.getDouble("b");
+        float lim = 598f;
+        for (int i = 0; i < words.length(); i++) {
+            JSONObject o = words.getJSONObject(i);
+            if (o == w || o.has("g") || o.optString("t", "").trim().isEmpty()) continue;
+            if (Math.abs(o.getDouble("b") - b) > 3.5) continue;
+            float ox0 = (float) o.getDouble("x0");
+            if (ox0 >= x1 - 0.5f && ox0 < lim) lim = ox0;
+        }
+        return lim;
+    }
+
+    /** Right-aligned at {@code right}; shrinks so it never runs into the label on its left. */
+    private static void drawRightFit(Canvas c, String t, float right, float leftLimit, float base, float size, int style) {
+        if (t == null || t.isEmpty()) return;
+        Paint p = textPaint(size, style, Color.BLACK);
+        float avail = right - (leftLimit + 3f);
+        float w = p.measureText(t), sz = size;
+        while (w > avail && sz > 6f) { sz -= 0.3f; p.setTextSize(sz); w = p.measureText(t); }
+        if (w > avail && avail > 10f) { p.setTextScaleX(Math.max(0.6f, avail / w)); w = p.measureText(t); }
+        c.drawText(t, right - w, base, p);
+    }
+
+    /**
+     * Left-anchored text that must stay left of {@code rightLimit} (the statement text on its right).
+     * Long amounts in words are shrunk first and then wrapped onto a second line instead of overlapping.
+     */
+    private static void drawWordsBlock(Canvas c, String t, float left, float rightLimit, float base, float size, int style) {
+        if (t == null || t.isEmpty()) return;
+        float avail = rightLimit - 4f - left;
+        Paint p = textPaint(size, style, Color.BLACK);
+        float sz = size;
+        while (p.measureText(t) > avail && sz > 7.4f) { sz -= 0.3f; p.setTextSize(sz); }
+        if (p.measureText(t) <= avail) { c.drawText(t, left, base, p); return; }
+        String[] ws = t.split(" ");
+        for (sz = Math.min(size, 8.6f); sz >= 5.5f; sz -= 0.3f) {
+            p.setTextSize(sz);
+            List<String> lines = new ArrayList<>();
+            String cur = "";
+            for (String wd : ws) {
+                String cand = cur.isEmpty() ? wd : cur + " " + wd;
+                if (cur.isEmpty() || p.measureText(cand) <= avail) cur = cand; else { lines.add(cur); cur = wd; }
+            }
+            lines.add(cur);
+            boolean fits = lines.size() <= 2;
+            for (String ln : lines) if (p.measureText(ln) > avail) fits = false;
+            if (fits) {
+                float gap = sz + 1.0f;
+                float y = lines.size() == 2 ? base - 2.4f : base;
+                for (String ln : lines) { c.drawText(ln, left, y, p); y += gap; }
+                return;
+            }
+        }
+        p.setTextSize(6f);
+        p.setTextScaleX(Math.max(0.5f, avail / Math.max(1f, p.measureText(t))));
+        c.drawText(t, left, base, p);
+    }
+
     // ---------------------------------------------------------------- page 3: payment request
 
     private static void drawPage3(Canvas c, JSONObject page, JSONObject m, String uuid, String today) throws Exception {
@@ -705,10 +782,10 @@ public class PdfGenerator {
             String k = w.optString("k", "");
             if (w.has("g")) { drawGlyphBox(c, w, "chk".equals(w.getString("g"))); continue; }
             switch (k) {
-                case "amtNum": drawText(c, String.format(Locale.US, "%.0f", tot), x1, b, s, st, Color.BLACK, 1); continue;
-                case "amtWords": drawText(c, amountWords(tot), x0, b, s, st, Color.BLACK, -1); continue;
-                case "person": case "person2": drawText(c, person, x1, b, s, st, Color.BLACK, 1); continue;
-                case "dest": drawText(c, dest, x1, b, s, st, Color.BLACK, 1); continue;
+                case "amtNum": drawRightFit(c, moneyInt(Math.round(tot)), x1, leftLimit(words, w), b, s, st); continue;
+                case "amtWords": drawWordsBlock(c, amountWords(tot), x0, rightLimit(words, w), b, s, st); continue;
+                case "person": case "person2": drawRightFit(c, person, x1, leftLimit(words, w), b, s, st); continue;
+                case "dest": drawRightFit(c, dest, x1, leftLimit(words, w), b, s, st); continue;
                 case "formM": drawText(c, "M" + formNo, x0, b, s, st, Color.BLACK, -1); continue;
                 case "today": drawText(c, today, x1, b, s, st, Color.BLACK, 1); continue;
                 case "uuid": drawText(c, uuid, x1, b, s, st, Color.BLACK, 1); continue;
