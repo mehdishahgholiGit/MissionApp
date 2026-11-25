@@ -82,17 +82,18 @@ public class PdfGenerator {
         String today = todayJalali();
         JSONArray pages = spec.getJSONArray("pages");
 
+        Bitmap sig = SignatureStore.enabled(activity) ? SignatureStore.load(activity, m.optString("person", "").trim()) : null;
         PdfDocument doc = new PdfDocument();
         PdfDocument.Page p1 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 1).create());
-        drawPage1(p1.getCanvas(), pages.getJSONObject(0), m, logo1, uuid, today);
+        drawPage1(p1.getCanvas(), pages.getJSONObject(0), m, logo1, uuid, today, sig);
         doc.finishPage(p1);
 
         PdfDocument.Page p2 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 2).create());
-        drawPage2(p2.getCanvas(), pages.getJSONObject(1), m, logo2, uuid, today);
+        drawPage2(p2.getCanvas(), pages.getJSONObject(1), m, logo2, uuid, today, sig);
         doc.finishPage(p2);
 
         PdfDocument.Page p3 = doc.startPage(new PdfDocument.PageInfo.Builder((int) W, (int) H, 3).create());
-        drawPage3(p3.getCanvas(), pages.getJSONObject(2), m, uuid, today);
+        drawPage3(p3.getCanvas(), pages.getJSONObject(2), m, uuid, today, sig);
         doc.finishPage(p3);
 
         appendAttachments(doc, activity, m, uuid, 4);
@@ -124,6 +125,7 @@ public class PdfGenerator {
         doc.close();
         if (logo1 != null) logo1.recycle();
         if (logo2 != null) logo2.recycle();
+        if (sig != null) sig.recycle();
         return u;
     }
 
@@ -335,6 +337,17 @@ public class PdfGenerator {
         drawBox(c, x, y, side, checked);
     }
 
+
+    /** Draws the signature right-aligned at {@code rightEdge}, vertically centred on {@code centerY}, fitted into maxW x maxH. */
+    private static void drawSignature(Canvas c, Bitmap sig, float rightEdge, float centerY, float maxW, float maxH) {
+        if (sig == null || sig.isRecycled()) return;
+        float bw = sig.getWidth(), bh = sig.getHeight();
+        float sc = Math.min(maxW / bw, maxH / bh);
+        float dw = bw * sc, dh = bh * sc;
+        float left = Math.max(10f, rightEdge - dw);
+        c.drawBitmap(sig, null, new RectF(left, centerY - dh / 2f, left + dw, centerY + dh / 2f), new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG));
+    }
+
     // ---------------------------------------------------------------- Code 39 barcode (matches the reference font)
 
     private static final String C39 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. *";
@@ -467,7 +480,7 @@ public class PdfGenerator {
 
     // ---------------------------------------------------------------- page 1: mission form
 
-    private static void drawPage1(Canvas c, JSONObject page, JSONObject m, Bitmap logo, String uuid, String today) throws Exception {
+    private static void drawPage1(Canvas c, JSONObject page, JSONObject m, Bitmap logo, String uuid, String today, Bitmap sig) throws Exception {
         String formNo = m.optString("form", "").trim();
         String service = joinServicesForForm(m.optString("service"));
         String start = shownDate(m.optString("start")), end = shownDate(m.optString("end"));
@@ -563,6 +576,9 @@ public class PdfGenerator {
         drawInCell(c, eTime, 146.88f, 233.40f, 328.6f, 10.5f, 0, Color.BLACK);
 
         if (m.optBoolean("suburb")) drawCheckMark(c, 70f, 387.5f, 9f);
+
+        // expert's signature, just left of the "امضاء کارشناس:" label
+        drawSignature(c, sig, 524f, 432f, 100f, 30f);
     }
 
     /**
@@ -592,7 +608,7 @@ public class PdfGenerator {
 
     // ---------------------------------------------------------------- page 2: petty cash expense statement
 
-    private static void drawPage2(Canvas c, JSONObject page, JSONObject m, Bitmap logo, String uuid, String today) throws Exception {
+    private static void drawPage2(Canvas c, JSONObject page, JSONObject m, Bitmap logo, String uuid, String today, Bitmap sig) throws Exception {
         String[] keys = {"هزینه شهر تهران", "هزینه تردد بین شهری", "هزینه تردد درون شهری", "سایر هزینه ها"};
         List<List<JSONObject>> items = new ArrayList<>();
         JSONArray all = m.optJSONArray("expenses");
@@ -647,7 +663,14 @@ public class PdfGenerator {
             String k = w.optString("k", "");
             if (k.equals("today")) { drawText(c, today, x1, b, s, st, color, 1); continue; }
             if (k.equals("uuid")) { drawText(c, uuid, x1, b, s, st, color, 1); continue; }
-            if (k.equals("person")) { drawText(c, person, x1, b, s, st, color, 1); continue; }
+            if (k.equals("person")) {
+                drawText(c, person, x1, b, s, st, color, 1);
+                if (sig != null && !person.isEmpty()) {
+                    float nw = Math.min(400f, textPaint(s, st, color).measureText(person));
+                    drawSignature(c, sig, x1 - nw - 6f, b - 4f, 110f, 44f);
+                }
+                continue;
+            }
             if (k.equals("totalAll")) { drawText(c, "ريال " + moneyInt(expenseSum(m, null)), (x0 + x1) / 2f, b, s, st, color, 0); continue; }
             if (k.length() == 2 && k.charAt(0) == 's') {
                 int g = k.charAt(1) - '1';
@@ -716,14 +739,15 @@ public class PdfGenerator {
     }
 
     /** Right-aligned at {@code right}; shrinks so it never runs into the label on its left. */
-    private static void drawRightFit(Canvas c, String t, float right, float leftLimit, float base, float size, int style) {
-        if (t == null || t.isEmpty()) return;
+    private static float drawRightFit(Canvas c, String t, float right, float leftLimit, float base, float size, int style) {
+        if (t == null || t.isEmpty()) return right;
         Paint p = textPaint(size, style, Color.BLACK);
         float avail = right - (leftLimit + 3f);
         float w = p.measureText(t), sz = size;
         while (w > avail && sz > 6f) { sz -= 0.3f; p.setTextSize(sz); w = p.measureText(t); }
         if (w > avail && avail > 10f) { p.setTextScaleX(Math.max(0.6f, avail / w)); w = p.measureText(t); }
         c.drawText(t, right - w, base, p);
+        return right - w;
     }
 
     /**
@@ -763,7 +787,7 @@ public class PdfGenerator {
 
     // ---------------------------------------------------------------- page 3: payment request
 
-    private static void drawPage3(Canvas c, JSONObject page, JSONObject m, String uuid, String today) throws Exception {
+    private static void drawPage3(Canvas c, JSONObject page, JSONObject m, String uuid, String today, Bitmap sig) throws Exception {
         JSONArray rects = page.getJSONArray("rects");
         for (int i = 0; i < rects.length(); i++) {
             JSONObject r = rects.getJSONObject(i);
@@ -784,7 +808,12 @@ public class PdfGenerator {
             switch (k) {
                 case "amtNum": drawRightFit(c, moneyInt(Math.round(tot)), x1, leftLimit(words, w), b, s, st); continue;
                 case "amtWords": drawWordsBlock(c, amountWords(tot), x0, rightLimit(words, w), b, s, st); continue;
-                case "person": case "person2": drawRightFit(c, person, x1, leftLimit(words, w), b, s, st); continue;
+                case "person": drawRightFit(c, person, x1, leftLimit(words, w), b, s, st); continue;
+                case "person2": {
+                    float left = drawRightFit(c, person, x1, leftLimit(words, w), b, s, st);
+                    if (sig != null && !person.isEmpty()) drawSignature(c, sig, left - 8f, b - 4f, 90f, 32f);
+                    continue;
+                }
                 case "dest": drawRightFit(c, dest, x1, leftLimit(words, w), b, s, st); continue;
                 case "formM": drawText(c, "M" + formNo, x0, b, s, st, Color.BLACK, -1); continue;
                 case "today": drawText(c, today, x1, b, s, st, Color.BLACK, 1); continue;

@@ -287,6 +287,9 @@ public class MainActivity extends Activity {
             Space wSp=new Space(this); box.addView(wSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
         }
 
+        Button sg=secondary("امضای من (عکس امضا برای PDF)"); sg.setOnClickListener(v->signatureScreen()); box.addView(sg);
+        Space sgSp=new Space(this); box.addView(sgSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
+
         Button dash=secondary("داشبورد: مجموع روزها، تعطیلی‌ها و هزینه‌ها"); dash.setOnClickListener(v->dashboardScreen()); box.addView(dash);
         Space dashSp=new Space(this); box.addView(dashSp,new LinearLayout.LayoutParams(dp(1),dp(8)));
 
@@ -306,6 +309,16 @@ public class MainActivity extends Activity {
                 TextView b=tv("شماره فرم: "+(m.optString("form").isEmpty()?"—":m.optString("form"))+"    |    مقصد: "+m.optString("destination","")+"    |    کارشناس: "+m.optString("person",""),15); b.setTextColor(muted);
                 TextView z=tv("جمع قابل پرداخت: "+money(total(m))+" ریال",14); z.setTextColor(green); z.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 c.addView(a); c.addView(b); c.addView(z);
+                final TextView rs=tv("",14); rs.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                final CheckBox rc=new CheckBox(this); rc.setText("هزینهٔ این مأموریت را دریافت کرده‌ام"); rc.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); rc.setTextColor(text); rc.setTextSize(15);
+                rc.setChecked(isReceived(m));
+                rs.setText(isReceived(m)?"دریافت شده":"هنوز دریافت نشده"); rs.setTextColor(isReceived(m)?green:RECEIVED_PENDING);
+                rc.setOnCheckedChangeListener((bv,on)->{
+                    try{ m.put("received",on); }catch(Exception ignored){}
+                    rs.setText(on?"دریافت شده":"هنوز دریافت نشده"); rs.setTextColor(on?green:RECEIVED_PENDING);
+                    save();
+                });
+                c.addView(rs); c.addView(rc);
                 c.setOnClickListener(v->{cur=m;edit();}); box.addView(c);
                 Space q=new Space(this); box.addView(q,new LinearLayout.LayoutParams(dp(1),dp(8)));
             }
@@ -416,6 +429,110 @@ public class MainActivity extends Activity {
     void saveLocal(){try{JSONArray a=new JSONArray();for(JSONObject m:data)a.put(m);getPreferences(0).edit().putString("data",a.toString()).apply();}catch(Exception e){}}
     void save(){ saveLocal(); backupAuto(); }
     void load(){try{JSONArray a=new JSONArray(getPreferences(0).getString("data","[]"));for(int i=0;i<a.length();i++)data.add(a.getJSONObject(i));}catch(Exception e){}}
+    // ---------- signature image (per person, printed next to the name in the PDF) ----------
+    static final int REQ_SIG=7104;
+    Spinner sigSpinner; Runnable sigRefresh;
+
+    SharedPreferences settings(){ return getSharedPreferences("mission_settings",0); }
+    String sigPerson(){ return sigSpinner!=null&&sigSpinner.getSelectedItem()!=null?sigSpinner.getSelectedItem().toString():people[0]; }
+
+    void signatureScreen(){
+        base("امضای من");
+        Button topBack=secondary("‹  بازگشت به صفحهٔ اصلی"); topBack.setOnClickListener(v->home()); box.addView(topBack);
+        Space ts=new Space(this); box.addView(ts,new LinearLayout.LayoutParams(dp(1),dp(8)));
+
+        LinearLayout c=section("امضای کدام کارشناس؟");
+        sigSpinner=spinner(people);
+        String saved=settings().getString("sigPerson","");
+        if(saved.isEmpty()){ for(String pn:people) if(SignatureStore.has(this,pn)){ saved=pn; break; } }
+        sigSpinner.setSelection(index(people,saved));
+        c.addView(field("کارشناس",sigSpinner));
+
+        FrameLayout pv=new FrameLayout(this); pv.setBackground(shape(Color.WHITE,14,border));
+        final ImageView iv=new ImageView(this); iv.setScaleType(ImageView.ScaleType.FIT_CENTER); iv.setPadding(dp(10),dp(10),dp(10),dp(10)); pv.addView(iv,new FrameLayout.LayoutParams(-1,-1));
+        final TextView ph=tv("امضایی ثبت نشده است",14); ph.setTextColor(Color.GRAY); ph.setGravity(Gravity.CENTER); pv.addView(ph,new FrameLayout.LayoutParams(-1,-1));
+        c.addView(pv,new LinearLayout.LayoutParams(-1,dp(150)));
+        sigRefresh=()->{
+            Bitmap b=SignatureStore.load(this,sigPerson());
+            iv.setImageBitmap(b); ph.setVisibility(b==null?View.VISIBLE:View.GONE);
+        };
+        sigSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){ settings().edit().putString("sigPerson",sigPerson()).apply(); sigRefresh.run(); }
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+        });
+        sigRefresh.run();
+
+        LinearLayout a=section("عملیات");
+        Button pick=bt("انتخاب عکس امضا"); pick.setOnClickListener(v->pickSignature()); addBtn(a,pick);
+        Button rot=secondary("چرخاندن ۹۰ درجه"); rot.setOnClickListener(v->rotateSignature()); addBtn(a,rot);
+        Button del=secondary("حذف امضا"); del.setTextColor(red);
+        del.setOnClickListener(v->{
+            if(!SignatureStore.has(this,sigPerson())){ msg("امضایی برای این کارشناس ثبت نشده است"); return; }
+            new AlertDialog.Builder(this).setTitle("حذف امضا").setMessage("امضای "+sigPerson()+" حذف شود؟").setNegativeButton("انصراف",null)
+                .setPositiveButton("حذف",(dd,ww)->{ SignatureStore.delete(this,sigPerson()); sigRefresh.run(); }).show();
+        });
+        addBtn(a,del);
+        CheckBox show=new CheckBox(this); show.setText("چاپ امضا در خروجی PDF"); show.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); show.setTextColor(text); show.setTextSize(16);
+        show.setChecked(SignatureStore.enabled(this)); show.setOnCheckedChangeListener((bv,on)->SignatureStore.setEnabled(this,on)); a.addView(show);
+
+        TextView info=tv("امضای خود را با خودکار تیره روی کاغذ سفید بنویسید و با نور خوب از آن عکس بگیرید. برنامه سفیدی کاغذ را شفاف می‌کند و فقط خود امضا را نگه می‌دارد.\n\nدر PDF، امضا کنار نام همان کارشناس چاپ می‌شود (صفحه‌های ۱ تا ۳). برای هر کارشناس می‌توانید امضای جدا ثبت کنید؛ امضا فقط داخل برنامه ذخیره می‌شود و در فایل پشتیبان نیست.",13);
+        info.setTextColor(muted); info.setPadding(dp(4),dp(10),dp(4),dp(4)); a.addView(info);
+    }
+
+    void pickSignature(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT); i.addCategory(Intent.CATEGORY_OPENABLE); i.setType("image/*");
+        try{ startActivityForResult(i,REQ_SIG); }catch(Exception e){ msg("انتخاب عکس روی این گوشی ممکن نیست"); }
+    }
+
+    void importSignature(final Uri u){
+        final String person=sigPerson();
+        showBusy("در حال آماده‌سازی امضا…");
+        new Thread(()->{
+            String err=null;
+            try{
+                BitmapFactory.Options o=new BitmapFactory.Options(); o.inJustDecodeBounds=true;
+                try(InputStream in=getContentResolver().openInputStream(u)){ BitmapFactory.decodeStream(in,null,o); }
+                if(o.outWidth<=0) throw new Exception("bad");
+                int ss=1; while(o.outWidth/ss>1600||o.outHeight/ss>1600) ss*=2;
+                BitmapFactory.Options o2=new BitmapFactory.Options(); o2.inSampleSize=ss;
+                Bitmap bmp;
+                try(InputStream in=getContentResolver().openInputStream(u)){ bmp=BitmapFactory.decodeStream(in,null,o2); }
+                if(bmp==null) throw new Exception("bad");
+                int rot=0;
+                try(InputStream in=getContentResolver().openInputStream(u)){
+                    int ori=new android.media.ExifInterface(in).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1);
+                    if(ori==6) rot=90; else if(ori==3) rot=180; else if(ori==8) rot=270;
+                }catch(Exception ignored){}
+                if(rot!=0){ Matrix mx=new Matrix(); mx.postRotate(rot); Bitmap r=Bitmap.createBitmap(bmp,0,0,bmp.getWidth(),bmp.getHeight(),mx,true); if(r!=bmp){ bmp.recycle(); bmp=r; } }
+                Bitmap res=SignatureStore.process(bmp);
+                bmp.recycle();
+                if(res==null) err="امضایی در عکس پیدا نشد؛ عکس را روشن‌تر و روی کاغذ سفید بگیرید";
+                else if(!SignatureStore.save(this,person,res)) err="ذخیرهٔ امضا ناموفق بود";
+                else res.recycle();
+            }catch(Exception e){ err="این عکس خوانده نشد"; }
+            final String errF=err;
+            runOnUiThread(()->{
+                hideBusy();
+                if(errF!=null) msg(errF); else msg("امضای "+person+" ذخیره شد");
+                if(sigRefresh!=null) sigRefresh.run();
+            });
+        }).start();
+    }
+
+    void rotateSignature(){
+        String person=sigPerson();
+        Bitmap b=SignatureStore.load(this,person);
+        if(b==null){ msg("امضایی برای این کارشناس ثبت نشده است"); return; }
+        Matrix mx=new Matrix(); mx.postRotate(90);
+        Bitmap r=Bitmap.createBitmap(b,0,0,b.getWidth(),b.getHeight(),mx,true);
+        SignatureStore.save(this,person,r);
+        if(sigRefresh!=null) sigRefresh.run();
+    }
+
+    // ---------- "expenses received" flag ----------
+    boolean isReceived(JSONObject m){ return m.optBoolean("received",false); }
+    int RECEIVED_PENDING=Color.parseColor("#D97706");
+
     // ---------- dashboard: totals of days, holidays, costs and mission pay ----------
     static final String[] MONTHS={"فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"};
 
@@ -461,7 +578,8 @@ public class MainActivity extends Activity {
 
         LinearLayout f=section("بازهٔ نمایش");
         final Spinner ysp=spinner(yearOpts.toArray(new String[0])), msp=spinner(monthOpts.toArray(new String[0])), psp=spinner(personOpts.toArray(new String[0]));
-        f.addView(field("سال",ysp)); f.addView(field("ماه",msp));
+        final Spinner rsp=spinner(new String[]{"همه","دریافت‌شده","دریافت‌نشده"});
+        f.addView(field("سال",ysp)); f.addView(field("ماه",msp)); f.addView(field("وضعیت دریافت",rsp));
         if(persons.size()>1) f.addView(field("کارشناس",psp));
         TextView note=tv("بازه بر اساس تاریخ شروع مأموریت است. مأموریت‌های بدون تاریخ فقط در «همه سال‌ها» حساب می‌شوند.",12); note.setTextColor(muted); note.setPadding(dp(4),dp(6),dp(4),0); f.addView(note);
 
@@ -474,20 +592,21 @@ public class MainActivity extends Activity {
             public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
                 String y=ysp.getSelectedItemPosition()==0?null:yearOpts.get(ysp.getSelectedItemPosition());
                 String pn=persons.size()>1&&psp.getSelectedItemPosition()>0?personOpts.get(psp.getSelectedItemPosition()):null;
-                renderDashboard(out,y,msp.getSelectedItemPosition(),pn);
+                renderDashboard(out,y,msp.getSelectedItemPosition(),pn,rsp.getSelectedItemPosition());
             }
             public void onNothingSelected(android.widget.AdapterView<?> p){}
         };
-        ysp.setOnItemSelectedListener(l); msp.setOnItemSelectedListener(l); psp.setOnItemSelectedListener(l);
-        renderDashboard(out,null,0,null);
+        ysp.setOnItemSelectedListener(l); msp.setOnItemSelectedListener(l); psp.setOnItemSelectedListener(l); rsp.setOnItemSelectedListener(l);
+        renderDashboard(out,null,0,null,0);
     }
 
     /** yearStr == null: all years; month 0: all months; person == null: everyone. */
-    void renderDashboard(LinearLayout out,String yearStr,int month,String person){
+    void renderDashboard(LinearLayout out,String yearStr,int month,String person,int recv){
         out.removeAllViews();
         ArrayList<JSONObject> sel=new ArrayList<>();
         for(JSONObject m:data){
             if(person!=null&&!person.equals(m.optString("person","").trim())) continue;
+            if(recv==1&&!isReceived(m)) continue; if(recv==2&&isReceived(m)) continue;
             int[] d=missionDate(m);
             if(yearStr!=null||month>0){
                 if(d==null) continue;
@@ -501,7 +620,7 @@ public class MainActivity extends Activity {
             TextView t=tv("در این بازه مأموریتی ثبت نشده است.",15); t.setTextColor(muted); t.setGravity(Gravity.CENTER); e.addView(t);
             out.addView(e); return;
         }
-        double days=0,hol=0,pay=0,hotel=0,air=0,cancel=0,expAll=0,mine=0,tot=0;
+        double days=0,hol=0,pay=0,hotel=0,air=0,cancel=0,expAll=0,mine=0,tot=0; double recvTot=0,pendTot=0; int nRecv=0,nPend=0;
         double[] catSum=new double[cats.length];
         for(JSONObject m:sel){
             days+=m.optDouble("days",1); hol+=m.optDouble("holiday",0); pay+=missionPay(m);
@@ -509,6 +628,7 @@ public class MainActivity extends Activity {
             double ex=expenseSum(m,null); expAll+=ex;
             mine+=reimbursable(m,"hotelPayer","hotel")+reimbursable(m,"goPayer","ticketGo")+reimbursable(m,"backPayer","ticketBack")+reimbursable(m,"cancelGoPayer","cancelGo")+reimbursable(m,"cancelBackPayer","cancelBack")+ex;
             tot+=total(m);
+            if(isReceived(m)){ recvTot+=total(m); nRecv++; } else { pendTot+=total(m); nPend++; }
             for(int i=0;i<cats.length;i++) catSum[i]+=expenseSum(m,cats[i]);
         }
         double allCost=hotel+air+cancel+expAll;
@@ -518,6 +638,7 @@ public class MainActivity extends Activity {
         addStatRow(g,statCard("مجموع روزهای تعطیل",plainNumber(hol)+" روز",text),statCard("حق مأموریت (ریال)",money(pay),green));
         addStatRow(g,statCard("مجموع هزینه‌ها (ریال)",money(allCost),text));
         addStatRow(g,statCard("جمع کل قابل پرداخت (ریال)\nحق مأموریت + هزینه‌های پرداخت‌شده توسط خودم",money(tot),green));
+        addStatRow(g,statCard("دریافت‌شده ("+nRecv+" مأموریت)",money(recvTot)+" ریال",green),statCard("در انتظار دریافت ("+nPend+" مأموریت)",money(pendTot)+" ریال",RECEIVED_PENDING));
         out.addView(g,new LinearLayout.LayoutParams(-1,-2));
 
         Space sp=new Space(this); out.addView(sp,new LinearLayout.LayoutParams(dp(1),dp(6)));
@@ -648,6 +769,8 @@ public class MainActivity extends Activity {
                 if(a!=null && a.length()>0){ askRestore(a,true); return; }
             }
             backupNow();
+        } else if(req==REQ_SIG){
+            importSignature(u);
         } else if(req==REQ_RESTORE){
             JSONArray a=BackupManager.parse(BackupManager.read(this,u));
             if(a==null){ msg("این فایل، پشتیبان معتبر مأموریت‌ها نیست"); return; }
