@@ -230,6 +230,10 @@ public class WizardActivity extends MainActivity {
             summaryLine(c,"شماره سرویس",joinServices(parseServices(service.getText().toString())));
             TextView total=tv("جمع کل قابل پرداخت\n"+money(total(cur))+" ریال",21);total.setTextColor(green);total.setGravity(Gravity.CENTER);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setPadding(dp(8),dp(22),dp(8),dp(22));c.addView(total);
             contentBox.addView(c);
+            final CheckBox recv=new CheckBox(this); recv.setText("هزینهٔ این مأموریت را دریافت کرده‌ام"); recv.setTypeface(Typeface.create("tahoma",Typeface.NORMAL)); recv.setTextColor(text); recv.setTextSize(17);
+            recv.setChecked(isReceived(cur));
+            recv.setOnCheckedChangeListener((bv,on)->{ try{ cur.put("received",on); }catch(Exception ignored){} if(data.contains(cur)) save(); });
+            contentBox.addView(recv);
             TextView note=tv("با ثبت نهایی، مأموریت ذخیره می‌شود و می‌توانید گزارش PDF را دریافت یا ارسال کنید.",13);note.setTextColor(muted);note.setGravity(Gravity.CENTER);contentBox.addView(note); Button pdfBtn=bt("دریافت / اشتراک PDF"); pdfBtn.setMinHeight(dp(64)); pdfBtn.setTextSize(16); pdfBtn.setOnClickListener(v->{sync();pdf(cur);}); contentBox.addView(pdfBtn,new LinearLayout.LayoutParams(-1,dp(64)));
         }
         backBtn.setVisibility(step==1?View.INVISIBLE:View.VISIBLE);
